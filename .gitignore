@@ -1,0 +1,27 @@
+elt_log.txt
+warehouse_backup.sql
+__pycache__/
+.vscode/
+# ډاټابیس او لوی فایلونه
+warehouse_backup.sql
+AgriWeatherDB.session.sql
+*.sql.gz
+*.bak
+
+# لوی ډاټا فایلونه
+*.csv
+*.xlsx
+geoBoundaries-AFG-ADM1_simplified.geojson
+
+# Windows service او لاګ
+elt_log.txt
+__pycache__/
+*.pyc
+
+# VSCode
+.vscode/
+
+# Environment
+venv/
+env/
+.env

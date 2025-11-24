@@ -1,0 +1,8 @@
+{
+  "mysql": {
+    "user": "root",
+    "password": "Moh123",
+    "host": "localhost",
+    "database": "WeatherDataWarehouse"
+  }
+}

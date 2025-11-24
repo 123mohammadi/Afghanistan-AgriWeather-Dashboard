@@ -1,0 +1,3226 @@
+
+mysql>
+mysql> -- د درې ډیټابیسونو جوړول
+mysql> CREATE DATABASE IF NOT EXISTS AgriWeatherDB;
+Query OK, 1 row affected (0.03 sec)
+
+mysql> CREATE DATABASE IF NOT EXISTS HealthWeatherDB;
+Query OK, 1 row affected (0.02 sec)
+
+mysql> CREATE DATABASE IF NOT EXISTS IntegratedWeatherDB;
+Query OK, 1 row affected (0.01 sec)
+
+mysql>
+mysql> -- د هر ډیټابیس لپاره default engine او charset تنظیم
+mysql> USE AgriWeatherDB;
+Database changed
+mysql> SET default_storage_engine = 'InnoDB';
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> ALTER DATABASE AgriWeatherDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+Query OK, 1 row affected (0.01 sec)
+
+mysql>
+mysql> USE HealthWeatherDB;
+Database changed
+mysql> SET default_storage_engine = 'InnoDB';
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> ALTER DATABASE HealthWeatherDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+Query OK, 1 row affected (0.02 sec)
+
+mysql>
+mysql> USE IntegratedWeatherDB;
+Database changed
+mysql> SET default_storage_engine = 'InnoDB';
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> ALTER DATABASE IntegratedWeatherDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+Query OK, 1 row affected (0.01 sec)
+
+mysql>
+mysql> -- د سرعت لپاره indexes فعال کړئ (عمومي)
+mysql> CREATE INDEX IF NOT EXISTS idx_time ON Time_Dim(time_id);  -- هر ډیټابیس کې تکرار کړئ که اړتیا وي
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IF NOT EXISTS idx_time ON Time_Dim(time_id)' at line 1
+mysql>
+mysql>
+mysql>
+mysql>
+mysql>
+
+د دې ډیټابیس اصلي موخه څه ده؟دا ډیټابیس وايي چې:
+ککړتیا څنګه روغتیا خرابوي؟
+کوم موسم/ښار کې تنفسي ناروغي زیاتې دي؟
+ماشومان او زاړه څنګه ډېر اغېزمن کیږي؟
+کله او چیرته خطر لوړ دی؟ خلکو ته خبرداری ورکړو!
+mysql>
+mysql> USE AgriWeatherDB;
+Database changed
+mysql>
+mysql> -- ۱. Time Dimension
+mysql> CREATE TABLE IF NOT EXISTS Time_Dim (
+    ->     time_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     date DATE,
+    ->     day INT,
+    ->     month INT,
+    ->     year INT,
+    ->     season VARCHAR(20),
+    ->     hour INT,
+    ->     weekday VARCHAR(10)
+    -> );
+Query OK, 0 rows affected (0.12 sec)
+
+mysql>
+mysql> -- ۲. Location Dimension
+mysql> CREATE TABLE IF NOT EXISTS Location_Dim (
+    ->     location_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     city_name VARCHAR(100),
+    ->     province VARCHAR(100),
+    ->     country VARCHAR(50),
+    ->     latitude DECIMAL(10,8),
+    ->     longitude DECIMAL(11,8),
+    ->     elevation INT
+    -> );
+Query OK, 0 rows affected (0.16 sec)
+
+mysql>
+mysql> -- ۳. Crop Dimension
+mysql> CREATE TABLE IF NOT EXISTS Crop_Dim (
+    ->     crop_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     crop_name VARCHAR(100),
+    ->     planting_period VARCHAR(50),
+    ->     water_requirement DECIMAL(5,2),
+    ->     growth_days INT
+    -> );
+Query OK, 0 rows affected (0.05 sec)
+
+mysql>
+mysql> -- ۴. Weather Dimension
+mysql> CREATE TABLE IF NOT EXISTS Weather_Dim (
+    ->     weather_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     temperature_range VARCHAR(50),
+    ->     humidity_range VARCHAR(50),
+    ->     rainfall_range VARCHAR(50),
+    ->     wind_speed DECIMAL(4,2)
+    -> );
+Query OK, 0 rows affected (0.13 sec)
+
+mysql>
+mysql> -- ۵. Soil Dimension
+mysql> CREATE TABLE IF NOT EXISTS Soil_Dim (
+    ->     soil_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     soil_type VARCHAR(50),
+    ->     soil_ph DECIMAL(3,2),
+    ->     fertility_level VARCHAR(20)
+    -> );
+Query OK, 0 rows affected (0.16 sec)
+
+mysql>
+mysql> -- فکت ټیبلونه
+mysql> -- ۶. Fact Agri Forecast
+mysql> CREATE TABLE IF NOT EXISTS Fact_AgriForecast (
+    ->     forecast_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     crop_id INT,
+    ->     weather_id INT,
+    ->     soil_id INT,
+    ->     avg_temperature DECIMAL(5,2),
+    ->     total_rainfall DECIMAL(6,2),
+    ->     soil_moisture DECIMAL(5,2),
+    ->     yield_prediction DECIMAL(8,2),
+    ->     planning_accuracy DECIMAL(5,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id),
+    ->     FOREIGN KEY (weather_id) REFERENCES Weather_Dim(weather_id),
+    ->     FOREIGN KEY (soil_id) REFERENCES Soil_Dim(soil_id)
+    -> );
+Query OK, 0 rows affected (0.18 sec)
+
+mysql>
+mysql> -- ۷. Fact Crop Yield
+mysql> CREATE TABLE IF NOT EXISTS Fact_CropYield (
+    ->     yield_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     crop_id INT,
+    ->     actual_yield DECIMAL(8,2),
+    ->     predicted_yield DECIMAL(8,2),
+    ->     variance DECIMAL(6,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id)
+    -> );
+Query OK, 0 rows affected (0.13 sec)
+
+mysql>
+mysql> -- ۸. Fact Weather Events
+mysql> CREATE TABLE IF NOT EXISTS Fact_WeatherEvents (
+    ->     event_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     weather_id INT,
+    ->     event_type VARCHAR(50),
+    ->     severity INT,
+    ->     impact_score DECIMAL(4,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (weather_id) REFERENCES Weather_Dim(weather_id)
+    -> );
+Query OK, 0 rows affected (0.14 sec)
+
+mysql>
+mysql> -- اضافي ټیبلونه
+mysql> -- ۹. Users
+mysql> CREATE TABLE IF NOT EXISTS Users (
+    ->     user_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     username VARCHAR(50),
+    ->     role VARCHAR(30),
+    ->     email VARCHAR(100),
+    ->     created_date DATE
+    -> );
+Query OK, 0 rows affected (0.05 sec)
+
+mysql>
+mysql> -- ۱۰. AuditLogs
+mysql> CREATE TABLE IF NOT EXISTS AuditLogs (
+    ->     log_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     user_id INT,
+    ->     action VARCHAR(100),
+    ->     timestamp DATETIME,
+    ->     table_name VARCHAR(50),
+    ->     FOREIGN KEY (user_id) REFERENCES Users(user_id)
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql>
+mysql> -- ۱۱. Metadata_Crops
+mysql> CREATE TABLE IF NOT EXISTS Metadata_Crops (
+    ->     meta_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     crop_id INT,
+    ->     nutrient_level VARCHAR(50),
+    ->     pest_resistance VARCHAR(30),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id)
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql>
+mysql> -- ۱۲. SensorData
+mysql> CREATE TABLE IF NOT EXISTS SensorData (
+    ->     sensor_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     location_id INT,
+    ->     time_id INT,
+    ->     sensor_type VARCHAR(50),
+    ->     reading_value DECIMAL(6,2),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id)
+    -> );
+Query OK, 0 rows affected (0.08 sec)
+
+mysql>
+mysql> -- ۱۳. FarmerProfiles
+mysql> CREATE TABLE IF NOT EXISTS FarmerProfiles (
+    ->     profile_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     location_id INT,
+    ->     farmer_name VARCHAR(100),
+    ->     farm_size DECIMAL(6,2),
+    ->     crops_planted TEXT,
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id)
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql>
+mysql> -- ۱۴. IrrigationLogs
+mysql> CREATE TABLE IF NOT EXISTS IrrigationLogs (
+    ->     irr_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     crop_id INT,
+    ->     water_used DECIMAL(7,2),
+    ->     efficiency DECIMAL(5,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id)
+    -> );
+Query OK, 0 rows affected (0.08 sec)
+
+mysql>
+mysql> -- ۱۵. PestAlerts
+mysql> CREATE TABLE IF NOT EXISTS PestAlerts (
+    ->     alert_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     crop_id INT,
+    ->     pest_type VARCHAR(50),
+    ->     alert_level VARCHAR(20),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id)
+    -> );
+Query OK, 0 rows affected (0.08 sec)
+
+mysql>
+mysql>
+mysql>
+mysql>
+
+
+
+
+دا ډیټابیس د روغتیا وزارت او چاپېریال ساتنې لپاره جوړ شوی چې ووايي:
+کله او چیرته ککړتیا لوړه شي، ناروغي به زیاته شي
+ماشومان او زاړه ډېر خطر کې دي
+ژمي کې تنفسي ناروغي زیاتېږي
+خلکو ته فوري خبرداری ورکړو ("نن بهر مه ځه!")
+
+
+
+
+
+mysql> USE HealthWeatherDB;
+Database changed
+mysql>
+mysql> -- ۱. Time Dimension (مشترکه)
+mysql> CREATE TABLE IF NOT EXISTS Time_Dim (
+    ->     time_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     date DATE,
+    ->     day INT,
+    ->     month INT,
+    ->     year INT,
+    ->     season VARCHAR(20),
+    ->     hour INT,
+    ->     weekday VARCHAR(10)
+    -> );
+Query OK, 0 rows affected (0.27 sec)
+
+mysql>
+mysql> -- ۲. Location Dimension (مشترکه)
+mysql> CREATE TABLE IF NOT EXISTS Location_Dim (
+    ->     location_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     city_name VARCHAR(100),
+    ->     province VARCHAR(100),
+    ->     country VARCHAR(50),
+    ->     latitude DECIMAL(10,8),
+    ->     longitude DECIMAL(11,8),
+    ->     population_density INT
+    -> );
+Query OK, 0 rows affected (0.23 sec)
+
+mysql>
+mysql> -- ۳. Air Quality Dimension
+mysql> CREATE TABLE IF NOT EXISTS AirQuality_Dim (
+    ->     air_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     pollution_level VARCHAR(50),
+    ->     aqi_range VARCHAR(50),
+    ->     main_pollutant VARCHAR(20),
+    ->     pm25_level DECIMAL(5,2)
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql>
+mysql> -- ۴. Weather Dimension (مشترکه، روغتیا سره تړلی)
+mysql> CREATE TABLE IF NOT EXISTS Weather_Dim (
+    ->     weather_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     temperature_range VARCHAR(50),
+    ->     humidity_range VARCHAR(50),
+    ->     rainfall_range VARCHAR(50),
+    ->     wind_speed DECIMAL(4,2)
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql>
+mysql> -- ۵. Health Condition Dimension
+mysql> CREATE TABLE IF NOT EXISTS HealthCondition_Dim (
+    ->     health_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     disease_type VARCHAR(100),
+    ->     risk_level VARCHAR(20),
+    ->     symptom_severity INT
+    -> );
+Query OK, 0 rows affected (0.08 sec)
+
+mysql>
+mysql> -- ۶. Demographic Dimension
+mysql> CREATE TABLE IF NOT EXISTS Demographic_Dim (
+    ->     demo_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     age_group VARCHAR(30),
+    ->     gender VARCHAR(10),
+    ->     vulnerability_level VARCHAR(20)
+    -> );
+Query OK, 0 rows affected (0.03 sec)
+
+mysql>
+mysql> -- فکت ټیبلونه
+mysql> -- ۷. Fact Health Risk
+mysql> CREATE TABLE IF NOT EXISTS Fact_HealthRisk (
+    ->     risk_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     air_id INT,
+    ->     weather_id INT,
+    ->     health_id INT,
+    ->     demo_id INT,
+    ->     aqi_value DECIMAL(6,2),
+    ->     pollution_level DECIMAL(6,2),
+    ->     reported_cases INT,
+    ->     avg_humidity DECIMAL(5,2),
+    ->     health_risk_score DECIMAL(5,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (air_id) REFERENCES AirQuality_Dim(air_id),
+    ->     FOREIGN KEY (weather_id) REFERENCES Weather_Dim(weather_id),
+    ->     FOREIGN KEY (health_id) REFERENCES HealthCondition_Dim(health_id),
+    ->     FOREIGN KEY (demo_id) REFERENCES Demographic_Dim(demo_id)
+    -> );
+Query OK, 0 rows affected (0.23 sec)
+
+mysql>
+mysql> -- ۸. Fact Illness Cases
+mysql> CREATE TABLE IF NOT EXISTS Fact_IllnessCases (
+    ->     case_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     health_id INT,
+    ->     demo_id INT,
+    ->     case_count INT,
+    ->     recovery_rate DECIMAL(5,2),
+    ->     mortality_rate DECIMAL(5,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (health_id) REFERENCES HealthCondition_Dim(health_id),
+    ->     FOREIGN KEY (demo_id) REFERENCES Demographic_Dim(demo_id)
+    -> );
+Query OK, 0 rows affected (0.17 sec)
+
+mysql>
+mysql> -- ۹. Fact Pollution Events
+mysql> CREATE TABLE IF NOT EXISTS Fact_PollutionEvents (
+    ->     event_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     air_id INT,
+    ->     event_type VARCHAR(50),
+    ->     severity INT,
+    ->     impact_score DECIMAL(4,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (air_id) REFERENCES AirQuality_Dim(air_id)
+    -> );
+Query OK, 0 rows affected (0.11 sec)
+
+mysql>
+mysql> -- اضافي ټیبلونه
+mysql> -- ۱۰. Users
+mysql> CREATE TABLE IF NOT EXISTS Users (
+    ->     user_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     username VARCHAR(50),
+    ->     role VARCHAR(30),
+    ->     email VARCHAR(100),
+    ->     created_date DATE
+    -> );
+Query OK, 0 rows affected (0.05 sec)
+
+mysql>
+mysql> -- ۱۱. AuditLogs
+mysql> CREATE TABLE IF NOT EXISTS AuditLogs (
+    ->     log_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     user_id INT,
+    ->     action VARCHAR(100),
+    ->     timestamp DATETIME,
+    ->     table_name VARCHAR(50),
+    ->     FOREIGN KEY (user_id) REFERENCES Users(user_id)
+    -> );
+Query OK, 0 rows affected (0.10 sec)
+
+mysql>
+mysql> -- ۱۲. Metadata_Health
+mysql> CREATE TABLE IF NOT EXISTS Metadata_Health (
+    ->     meta_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     health_id INT,
+    ->     prevention_measure VARCHAR(100),
+    ->     vaccine_availability VARCHAR(20),
+    ->     FOREIGN KEY (health_id) REFERENCES HealthCondition_Dim(health_id)
+    -> );
+Query OK, 0 rows affected (0.09 sec)
+
+mysql>
+mysql> -- ۱۳. PatientRecords
+mysql> CREATE TABLE IF NOT EXISTS PatientRecords (
+    ->     record_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     location_id INT,
+    ->     time_id INT,
+    ->     demo_id INT,
+    ->     diagnosis VARCHAR(100),
+    ->     treatment_cost DECIMAL(8,2),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (demo_id) REFERENCES Demographic_Dim(demo_id)
+    -> );
+Query OK, 0 rows affected (0.10 sec)
+
+mysql>
+mysql> -- ۱۴. PollutionLogs
+mysql> CREATE TABLE IF NOT EXISTS PollutionLogs (
+    ->     log_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     air_id INT,
+    ->     co2_level DECIMAL(6,2),
+    ->     no2_level DECIMAL(6,2),
+    ->     efficiency_measure VARCHAR(50),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (air_id) REFERENCES AirQuality_Dim(air_id)
+    -> );
+Query OK, 0 rows affected (0.97 sec)
+
+mysql>
+mysql> -- ۱۵. HealthAlerts
+mysql> CREATE TABLE IF NOT EXISTS HealthAlerts (
+    ->     alert_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     health_id INT,
+    ->     alert_type VARCHAR(50),
+    ->     alert_level VARCHAR(20),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (health_id) REFERENCES HealthCondition_Dim(health_id)
+    -> );
+Query OK, 0 rows affected (0.09 sec)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+mysql>
+mysql>
+mysql> USE IntegratedWeatherDB;
+Database changed
+mysql>
+mysql> -- ۱. Time Dimension (مشترکه)
+mysql> CREATE TABLE IF NOT EXISTS Time_Dim (
+    ->     time_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     date DATE,
+    ->     day INT,
+    ->     month INT,
+    ->     year INT,
+    ->     season VARCHAR(20),
+    ->     hour INT,
+    ->     weekday VARCHAR(10)
+    -> );
+Query OK, 0 rows affected (0.06 sec)
+
+mysql>
+mysql> -- ۲. Location Dimension (مشترکه)
+mysql> CREATE TABLE IF NOT EXISTS Location_Dim (
+    ->     location_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     city_name VARCHAR(100),
+    ->     province VARCHAR(100),
+    ->     country VARCHAR(50),
+    ->     latitude DECIMAL(10,8),
+    ->     longitude DECIMAL(11,8),
+    ->     population_density INT,
+    ->     elevation INT
+    -> );
+Query OK, 0 rows affected (0.14 sec)
+
+mysql>
+mysql> -- ۳. Crop Dimension (له Agri)
+mysql> CREATE TABLE IF NOT EXISTS Crop_Dim (
+    ->     crop_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     crop_name VARCHAR(100),
+    ->     planting_period VARCHAR(50),
+    ->     water_requirement DECIMAL(5,2),
+    ->     growth_days INT
+    -> );
+Query OK, 0 rows affected (0.23 sec)
+
+mysql>
+mysql> -- ۴. Air Quality Dimension (له Health)
+mysql> CREATE TABLE IF NOT EXISTS AirQuality_Dim (
+    ->     air_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     pollution_level VARCHAR(50),
+    ->     aqi_range VARCHAR(50),
+    ->     main_pollutant VARCHAR(20),
+    ->     pm25_level DECIMAL(5,2)
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql>
+mysql> -- ۵. Weather Dimension (مشترکه)
+mysql> CREATE TABLE IF NOT EXISTS Weather_Dim (
+    ->     weather_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     temperature_range VARCHAR(50),
+    ->     humidity_range VARCHAR(50),
+    ->     rainfall_range VARCHAR(50),
+    ->     wind_speed DECIMAL(4,2)
+    -> );
+Query OK, 0 rows affected (1.47 sec)
+
+mysql>
+mysql> -- ۶. Integrated Dimension (نوې - د دواړو ترکیب)
+mysql> CREATE TABLE IF NOT EXISTS Integrated_Dim (
+    ->     int_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     crop_id INT,
+    ->     health_id INT,
+    ->     correlation_type VARCHAR(50),
+    ->     impact_factor DECIMAL(5,2),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id)  -- فرضاً له Agri import
+    -> );
+Query OK, 0 rows affected (0.12 sec)
+
+mysql>
+mysql> -- فکت ټیبلونه
+mysql> -- ۷. Fact Integrated Analysis
+mysql> CREATE TABLE IF NOT EXISTS Fact_IntegratedAnalysis (
+    ->     analysis_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     crop_id INT,
+    ->     air_id INT,
+    ->     weather_id INT,
+    ->     int_id INT,
+    ->     combined_yield DECIMAL(8,2),
+    ->     combined_risk DECIMAL(5,2),
+    ->     correlation_score DECIMAL(5,2),
+    ->     total_impact DECIMAL(6,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id),
+    ->     FOREIGN KEY (air_id) REFERENCES AirQuality_Dim(air_id),
+    ->     FOREIGN KEY (weather_id) REFERENCES Weather_Dim(weather_id),
+    ->     FOREIGN KEY (int_id) REFERENCES Integrated_Dim(int_id)
+    -> );
+Query OK, 0 rows affected (0.16 sec)
+
+mysql>
+mysql> -- ۸. Fact Cross Effects
+mysql> CREATE TABLE IF NOT EXISTS Fact_CrossEffects (
+    ->     effect_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     crop_id INT,
+    ->     health_id INT,
+    ->     weather_id INT,
+    ->     air_id INT,
+    ->     yield_loss DECIMAL(6,2),
+    ->     health_cases_increase INT,
+    ->     mitigation_score DECIMAL(5,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id),
+    ->     FOREIGN KEY (health_id) REFERENCES HealthCondition_Dim(health_id),  -- فرضاً import
+    ->     FOREIGN KEY (weather_id) REFERENCES Weather_Dim(weather_id),
+    ->     FOREIGN KEY (air_id) REFERENCES AirQuality_Dim(air_id)
+    -> );
+ERROR 1824 (HY000): Failed to open the referenced table 'healthcondition_dim'
+mysql>
+mysql> -- ۹. Fact Summary Metrics
+mysql> CREATE TABLE IF NOT EXISTS Fact_SummaryMetrics (
+    ->     metric_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     overall_score DECIMAL(5,2),
+    ->     agri_contribution DECIMAL(5,2),
+    ->     health_contribution DECIMAL(5,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id)
+    -> );
+Query OK, 0 rows affected (0.58 sec)
+
+mysql>
+mysql> -- اضافي ټیبلونه
+mysql> -- ۱۰. Users (مشترکه)
+mysql> CREATE TABLE IF NOT EXISTS Users (
+    ->     user_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     username VARCHAR(50),
+    ->     role VARCHAR(30),
+    ->     email VARCHAR(100),
+    ->     created_date DATE
+    -> );
+Query OK, 0 rows affected (0.17 sec)
+
+mysql>
+mysql> -- ۱۱. AuditLogs
+mysql> CREATE TABLE IF NOT EXISTS AuditLogs (
+    ->     log_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     user_id INT,
+    ->     action VARCHAR(100),
+    ->     timestamp DATETIME,
+    ->     table_name VARCHAR(50),
+    ->     FOREIGN KEY (user_id) REFERENCES Users(user_id)
+    -> );
+Query OK, 0 rows affected (1.58 sec)
+
+mysql>
+mysql> -- ۱۲. Metadata_Integrated
+mysql> CREATE TABLE IF NOT EXISTS Metadata_Integrated (
+    ->     meta_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     int_id INT,
+    ->     data_source VARCHAR(50),
+    ->     update_frequency VARCHAR(20),
+    ->     FOREIGN KEY (int_id) REFERENCES Integrated_Dim(int_id)
+    -> );
+Query OK, 0 rows affected (0.16 sec)
+
+mysql>
+mysql> -- ۱۳. SensorIntegrated
+mysql> CREATE TABLE IF NOT EXISTS SensorIntegrated (
+    ->     sensor_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     location_id INT,
+    ->     time_id INT,
+    ->     sensor_type VARCHAR(50),  -- Agri or Health
+    ->     reading_value DECIMAL(6,2),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id)
+    -> );
+Query OK, 0 rows affected (0.23 sec)
+
+mysql>
+mysql> -- ۱۴. ProfileIntegrated
+mysql> CREATE TABLE IF NOT EXISTS ProfileIntegrated (
+    ->     profile_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     location_id INT,
+    ->     profile_type VARCHAR(30),  -- Farmer or Patient
+    ->     details TEXT,
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id)
+    -> );
+Query OK, 0 rows affected (0.28 sec)
+
+mysql>
+mysql> -- ۱۵. AlertIntegrated
+mysql> CREATE TABLE IF NOT EXISTS AlertIntegrated (
+    ->     alert_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     int_id INT,
+    ->     alert_type VARCHAR(50),
+    ->     alert_level VARCHAR(20),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (int_id) REFERENCES Integrated_Dim(int_id)
+    -> );
+Query OK, 0 rows affected (1.61 sec)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+
+
+
+
+
+
+mysql>
+mysql>
+mysql>
+mysql>
+mysql>
+mysql>
+mysql>
+mysql> CREATE INDEX idx_time ON Time_Dim(time_id);
+Query OK, 0 rows affected (0.71 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql>
+mysql> -- د AgriWeatherDB لپاره انډیکسونه
+mysql> USE AgriWeatherDB;
+Database changed
+mysql> CREATE INDEX idx_time ON Time_Dim(time_id);
+Query OK, 0 rows affected (0.14 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_location ON Location_Dim(location_id);
+Query OK, 0 rows affected (0.09 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_crop ON Crop_Dim(crop_id);
+Query OK, 0 rows affected (0.05 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql> -- د HealthWeatherDB لپاره انډیکسونه
+mysql> USE HealthWeatherDB;
+Database changed
+mysql> CREATE INDEX idx_time ON Time_Dim(time_id);
+Query OK, 0 rows affected (0.08 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_location ON Location_Dim(location_id);
+Query OK, 0 rows affected (0.16 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_air ON AirQuality_Dim(air_id);
+Query OK, 0 rows affected (0.06 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_health ON HealthCondition_Dim(health_id);
+Query OK, 0 rows affected (0.09 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql> -- د IntegratedWeatherDB لپاره انډیکسونه
+mysql> USE IntegratedWeatherDB;
+Database changed
+mysql> CREATE INDEX idx_time ON Time_Dim(time_id);
+ERROR 1061 (42000): Duplicate key name 'idx_time'
+mysql> CREATE INDEX idx_location ON Location_Dim(location_id);
+Query OK, 0 rows affected (0.24 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_crop ON Crop_Dim(crop_id);
+Query OK, 0 rows affected (0.07 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_air ON AirQuality_Dim(air_id);
+Query OK, 0 rows affected (0.04 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql>
+mysql> CREATE INDEX idx_air ON AirQuality_Dim(air_id);
+ERROR 1061 (42000): Duplicate key name 'idx_air'
+mysql>
+mysql>
+mysql> -- د IntegratedWeatherDB کې HealthCondition_Dim جوړول (د shared dimension لپاره)
+mysql> USE IntegratedWeatherDB;
+Database changed
+mysql> CREATE TABLE IF NOT EXISTS HealthCondition_Dim (
+    ->     health_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     disease_type VARCHAR(100),
+    ->     risk_level VARCHAR(20),
+    ->     symptom_severity INT
+    -> );
+Query OK, 0 rows affected (0.06 sec)
+
+mysql>
+mysql> -- اوس Fact_CrossEffects له سره جوړول (د foreign key سره)
+mysql> DROP TABLE IF EXISTS Fact_CrossEffects;  -- پخوانی ناکامه له منځه یوسئ که شته وي
+Query OK, 0 rows affected, 1 warning (0.01 sec)
+
+mysql> CREATE TABLE Fact_CrossEffects (
+    ->     effect_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     crop_id INT,
+    ->     health_id INT,
+    ->     weather_id INT,
+    ->     air_id INT,
+    ->     yield_loss DECIMAL(6,2),
+    ->     health_cases_increase INT,
+    ->     mitigation_score DECIMAL(5,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id),
+    ->     FOREIGN KEY (health_id) REFERENCES HealthCondition_Dim(health_id),
+    ->     FOREIGN KEY (weather_id) REFERENCES Weather_Dim(weather_id),
+    ->     FOREIGN KEY (air_id) REFERENCES AirQuality_Dim(air_id)
+    -> );
+Query OK, 0 rows affected (0.23 sec)
+
+
+
+
+CREATE DATABASE WeatherDataWarehouse;
+USE WeatherDataWarehouse;
+SET default_storage_engine = 'InnoDB';
+ALTER DATABASE WeatherDataWarehouse CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+
+دا سم دی! د ۵ rows ښکاره شوي، چې د Time_Dim او Location_Dim ترکیب ښيي (د وخت او ځای سره).
+کار: د ځایي موسمي تجزیې لپاره – مثلاً د کابل کې د ۲۰۲۴ کې د تودوخې بدلون وګورئ.
+SELECT * FROM Merged_Dims LIMIT 5;
+
+
+
+کار: د موسم پر بنسټ متوسط تودوخه او باران ښيي – د کرنې لپاره ګټور (لکه د غوښتنې فصل کې باران زیات دی).
+USE WeatherDataWarehouse;
+SELECT t.season, AVG(f.avg_temperature) AS Avg_Temp, AVG(f.total_rainfall) AS Avg_Rain 
+FROM Fact_AgriForecast f JOIN Time_Dim t ON f.time_id = t.time_id 
+GROUP BY t.season;
+
+
+
+کار: د فصل نوم سره د حاصلات وړاندوینه او ککړتیا سطح اړیکه ښيي – د روغتیا او کرنې ترکیب لپاره ګټور (لکه لوړ PM2.5 کې حاصلات کم دي).
+USE WeatherDataWarehouse;
+SELECT c.crop_name, AVG(f.yield_prediction) AS Avg_Yield, AVG(a.pm25_level) AS Avg_PM25 
+FROM Fact_AgriForecast f JOIN Crop_Dim c ON f.crop_id = c.crop_id JOIN AirQuality_Dim a ON f.weather_id = a.air_id 
+GROUP BY c.crop_name LIMIT 5;
+
+
+
+
+د WeatherDataWarehouse په ټولو مهمو جدولونو کې څومره ریکارډونه (Rows) شته، هغه ټول په یوه ګډه جدول کې درښيي
+USE WeatherDataWarehouse;
+
+SELECT 'Time_Dim' AS TableName, COUNT(*) AS `RowCount` FROM Time_Dim
+UNION ALL
+SELECT 'Location_Dim', COUNT(*) FROM Location_Dim
+UNION ALL
+SELECT 'Crop_Dim', COUNT(*) FROM Crop_Dim
+UNION ALL
+SELECT 'AirQuality_Dim', COUNT(*) FROM AirQuality_Dim
+UNION ALL
+SELECT 'HealthCondition_Dim', COUNT(*) FROM HealthCondition_Dim
+UNION ALL
+SELECT 'Fact_AgriForecast', COUNT(*) FROM Fact_AgriForecast;
+
+
+
+
+
+۱. د فصلونو او موسم اړیکې تجزیه (Crop & Season Analysis):څه کار کوي: د فصل نوم سره د موسم پر بنسټ متوسط حاصلات وړاندوینه ښيي – د کرنې لپاره ګټور (لکه کوم فصل کې څومره حاصلات زیات دي).
+سم شوی Query:sql
+
+SELECT c.crop_name, t.season, AVG(f.yield_prediction) AS Avg_Yield 
+FROM Fact_AgriForecast f 
+JOIN Crop_Dim c ON f.crop_id = c.crop_id 
+JOIN Time_Dim t ON f.time_id = t.time_id 
+GROUP BY c.crop_name, t.season 
+ORDER BY Avg_Yield DESC 
+LIMIT 10;
+
+
+
+۲. د هوا کیفیت او حاصلات اغېزې (Air Quality Impact on Yield):څه کار کوي: د ککړتیا سطح (PM2.5) سره د حاصلات وړاندوینې اړیکه ښيي – د روغتیا او کرنې ترکیب (لوړ PM2.5 کې حاصلات کم دي).
+سم شوی Query:sql
+
+SELECT a.pollution_level, AVG(f.yield_prediction) AS Avg_Yield, AVG(a.pm25_level) AS Avg_PM25 
+FROM Fact_AgriForecast f 
+JOIN AirQuality_Dim a ON f.weather_id = a.air_id 
+GROUP BY a.pollution_level 
+ORDER BY Avg_PM25 DESC;
+
+
+
+
+۳. د روغتیايي حالت او موسم اړیکه (Health Condition & Season Link):څه کار کوي: د ناروغۍ ډول سره د موسم اړیکه ښيي – د روغتیا تجزیې لپاره (لکه ژمي کې تنفسي ناروغۍ زیاتې دي).
+سم شوی Query:sql
+
+SELECT h.disease_type, t.season, COUNT(*) AS Case_Count 
+FROM HealthCondition_Dim h 
+JOIN Fact_AgriForecast f ON h.health_id = f.crop_id  -- د سمبوليك ترکیب لپاره (د روغتيا او کرنې اړيکه)
+JOIN Time_Dim t ON f.time_id = t.time_id 
+GROUP BY h.disease_type, t.season 
+ORDER BY Case_Count DESC 
+LIMIT 10;
+
+
+
+۴. د ټول وېرهۍس خلاصه راپور (Warehouse Summary Report):څه کار کوي: د ټول وېرهۍس خلاصه ښيي (د ټول ریکارډونو، متوسط قدرونو، او views شمېر) – د پروژې پای لپاره ښه.
+سم شوی Query:sql
+
+SELECT 
+    (SELECT COUNT(*) FROM Time_Dim) AS Total_Time_Records,
+    (SELECT COUNT(*) FROM Fact_AgriForecast) AS Total_Fact_Records,
+    (SELECT AVG(yield_prediction) FROM Fact_AgriForecast) AS Avg_Yield_Prediction,
+    (SELECT COUNT(*) FROM Merged_Dims) AS Total_Merged_Records;
+
+
+
+څه کار کوي: د فصل نوم سره د باران متوسط اړیکه ښيي – د کرنې وروسته ګوښې لپاره ګټور (لکه غنمو کې څومره باران غوره دی).
+سم شوی Query:sql
+
+SELECT c.crop_name, AVG(f.total_rainfall) AS Avg_Rainfall_mm, AVG(f.yield_prediction) AS Avg_Yield 
+FROM Fact_AgriForecast f 
+JOIN Crop_Dim c ON f.crop_id = c.crop_id 
+GROUP BY c.crop_name 
+ORDER BY Avg_Rainfall_mm DESC 
+LIMIT 8;
+
+
+
+
+۲. د ککړتیا او روغتیايي خطر اړیکه (Pollution & Health Risk Link):څه کار کوي: د ککړتیا سطح سره د روغتیايي خطر امتیاز اړیکه ښيي – د روغتیا څارنې لپاره (لوړ PM2.5 کې خطر زیات دی).
+سم شوی Query:sql
+
+SELECT a.pollution_level, AVG(h.health_risk_score) AS Avg_Health_Risk, AVG(a.pm25_level) AS Avg_PM25 
+FROM AirQuality_Dim a 
+JOIN HealthCondition_Dim h ON a.air_id = h.health_id  # د سمبوليك ترکیب لپاره
+GROUP BY a.pollution_level 
+ORDER BY Avg_PM25 DESC;
+
+
+
+۳. د موسم او حاصلات وړاندوینه (Season & Yield Prediction):څه کار کوي: د موسم سره د حاصلات وړاندوینې اړیکه ښيي – د موسمي بدلونونو پر بنسٲ د کرنې پلان جوړول.
+سم شوی Query:sql
+
+SELECT t.season, AVG(f.yield_prediction) AS Avg_Yield, COUNT(*) AS Record_Count 
+FROM Fact_AgriForecast f 
+JOIN Time_Dim t ON f.time_id = t.time_id 
+GROUP BY t.season 
+ORDER BY Avg_Yield DESC;
+
+
+
+
+۴. د ځایي تجزیې خلاصه (Location-Based Summary):څه کار کوي: د ځای (ښار) سره د متوسط تودوخه او حاصلات اړیکه ښيي – د ځایي وروسته ګوښې لپاره.
+سم شوی Query:sql
+
+SELECT l.city_name, AVG(f.avg_temperature) AS Avg_Temp, AVG(f.yield_prediction) AS Avg_Yield 
+FROM Fact_AgriForecast f 
+JOIN Location_Dim l ON f.location_id = l.location_id 
+GROUP BY l.city_name 
+ORDER BY Avg_Yield DESC 
+LIMIT 6;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+زما څخه اوستاد دا لاندی شیان په پروژه غواړی 1. Draw a detailed Entity-Relationship Diagram (ERD) for a Database: (2 Marks)
+a. Create an ERD for a database populated with 4 million records spanning 4 years' data.
+2. Data Warehouse Design: (5 Marks)
+a. Define a business processes for your project
+b. Discuss Granularities of your project
+c. Define dimensions
+d. Define measures
+e. Draw DFM of your project
+3. Detail the ETL Process: (2 Marks)
+a. Define and apply ETL (Extract, Transform, Load) processes on your project
+4. Utilize Group by Extensions: (3 Marks)
+a. Utilizing the given database schema, demonstrate the use of at least 3 Group by 
+Extensions.
+5. Explore Window Functions: (3 Marks)
+a. Using examples, demonstrate the application of at least 9 different Window Functions 
+on the given database.
+6. Data Visualization using Graphs: (5 Marks)
+a. create at least 10 of graphs to visualize the data effectively. او زه تاته د کومو فایلونو کوډ درکړم چی ته یی راته سم کړی پورته ټول شیان اوس یوازی د فایلونو نومونه راته وښآیه چی کوډ یی در کړم D:\datawer>dir
+ Volume in drive D is New Volume
+ Volume Serial Number is 0EC7-6020
+
+ Directory of D:\datawer
+
+11/19/2025  04:25 AM    <DIR>          .
+11/19/2025  04:25 AM    <DIR>          ..
+11/02/2025  11:16 AM    <DIR>          .vscode    
+11/18/2025  08:49 AM             7,728 app.py     
+11/18/2025  11:07 AM               258 config.json
+11/18/2025  11:11 AM               137 config_dashboard.json
+11/20/2025  06:57 AM             9,119 dashboard.py
+11/18/2025  10:36 AM           161,044 elt_log.txt
+11/15/2025  09:07 PM            17,708 enhanced_elt_pipeline.py
+11/08/2025  09:58 PM            10,003 generate_agri_data.py
+11/02/2025  09:02 AM            10,329 generate_health_data.py
+11/15/2025  09:11 PM            11,114 generate_integrated_data.py
+11/19/2025  04:07 AM           177,187 geoBoundaries-AFG-ADM1_simplified.geojson
+11/18/2025  09:59 AM                 0 info.txt
+11/18/2025  11:28 AM                70 requirements.txt
+11/18/2025  10:36 AM       252,700,810 warehouse_backup.sql
+              13 File(s)    253,105,507 bytes
+               3 Dir(s)   1,774,084,096 bytes free
+
+
+
+
+
+
+
+
+D:\datawer\generate_health_data.pyimport mysql.connector
+from faker import Faker
+import random
+from datetime import datetime, timedelta
+import numpy as np
+
+# MySQL تړل
+config = {
+    'user': 'root',
+    'password': 'Moh123',  # ستاسو اصلي پاس ورډ واچوئ
+    'host': 'localhost',
+    'database': 'HealthWeatherDB'
+}
+
+fake = Faker('en_US')
+conn = mysql.connector.connect(**config)
+cursor = conn.cursor()
+
+BATCH_SIZE = 1000
+NUM_RECORDS = 10000
+
+def insert_batch(table_name, columns, data):
+    placeholders = ', '.join(['%s'] * len(columns))
+    sql = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders})"
+    cursor.executemany(sql, data)
+    conn.commit()
+    print(f"Inserted {len(data)} records into {table_name}")
+
+# ۱. Time_Dim
+print("Generating Time data...")
+time_data = []
+start_date = datetime(2020, 1, 1)
+for _ in range(NUM_RECORDS):
+    date = start_date + timedelta(days=random.randint(0, 1825))
+    day, month, year = date.day, date.month, date.year
+    season = random.choice(['Spring', 'Summer', 'Autumn', 'Winter'])
+    hour = random.randint(0, 23)
+    weekday = date.strftime('%A')
+    time_data.append((date, day, month, year, season, hour, weekday))
+columns_time = ['date', 'day', 'month', 'year', 'season', 'hour', 'weekday']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = time_data[i:i + BATCH_SIZE]
+    insert_batch('Time_Dim', columns_time, batch)
+
+# ۲. Location_Dim
+print("Generating Location data...")
+locations = ['Kabul', 'Herat', 'Mazar-i-Sharif', 'Kandahar', 'Jalalabad'] * (NUM_RECORDS // 5 + 1)
+location_data = []
+for loc in locations[:NUM_RECORDS]:
+    province = fake.city()
+    country = 'Afghanistan'
+    lat = round(random.uniform(30, 38), 6)
+    lon = round(random.uniform(60, 75), 6)
+    pop_density = random.randint(1000, 10000)
+    location_data.append((loc, province, country, lat, lon, pop_density))
+columns_loc = ['city_name', 'province', 'country', 'latitude', 'longitude', 'population_density']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = location_data[i:i + BATCH_SIZE]
+    insert_batch('Location_Dim', columns_loc, batch)
+
+# ۳. AirQuality_Dim
+print("Generating AirQuality data...")
+air_data = []
+for _ in range(NUM_RECORDS):
+    poll_level = random.choice(['Low', 'Medium', 'High', 'Extreme'])
+    aqi_range = f"{random.randint(0, 500)}"
+    main_poll = random.choice(['PM2.5', 'NO2', 'CO2', 'O3'])
+    pm25 = round(random.uniform(0, 500), 1)
+    air_data.append((poll_level, aqi_range, main_poll, pm25))
+columns_air = ['pollution_level', 'aqi_range', 'main_pollutant', 'pm25_level']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = air_data[i:i + BATCH_SIZE]
+    insert_batch('AirQuality_Dim', columns_air, batch)
+
+# ۴. Weather_Dim
+print("Generating Weather data...")
+weather_data = []
+for _ in range(NUM_RECORDS):
+    temp_range = f"{random.randint(10, 40)}-{random.randint(20, 50)}°C"
+    hum_range = f"{random.randint(30, 70)}-{random.randint(60, 90)}%"
+    rain_range = f"{random.randint(0, 50)}-{random.randint(50, 200)}mm"
+    wind_speed = round(random.uniform(5, 25), 1)
+    weather_data.append((temp_range, hum_range, rain_range, wind_speed))
+columns_weather = ['temperature_range', 'humidity_range', 'rainfall_range', 'wind_speed']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = weather_data[i:i + BATCH_SIZE]
+    insert_batch('Weather_Dim', columns_weather, batch)
+
+# ۵. HealthCondition_Dim
+print("Generating HealthCondition data...")
+health_data = []
+diseases = ['Asthma', 'Bronchitis', 'Allergy', 'COVID-19', 'Flu']
+for _ in range(NUM_RECORDS):
+    disease = random.choice(diseases)
+    risk = random.choice(['Low', 'Medium', 'High'])
+    severity = random.randint(1, 10)
+    health_data.append((disease, risk, severity))
+columns_health = ['disease_type', 'risk_level', 'symptom_severity']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = health_data[i:i + BATCH_SIZE]
+    insert_batch('HealthCondition_Dim', columns_health, batch)
+
+# ۶. Demographic_Dim
+print("Generating Demographic data...")
+demo_data = []
+for _ in range(NUM_RECORDS):
+    age_group = random.choice(['0-18', '19-40', '41-60', '60+'])
+    gender = random.choice(['Male', 'Female', 'Other'])
+    vuln_level = random.choice(['High', 'Medium', 'Low'])
+    demo_data.append((age_group, gender, vuln_level))
+columns_demo = ['age_group', 'gender', 'vulnerability_level']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = demo_data[i:i + BATCH_SIZE]
+    insert_batch('Demographic_Dim', columns_demo, batch)
+
+# ۷. Fact_HealthRisk
+print("Generating Fact HealthRisk data...")
+fact_data = []
+for _ in range(NUM_RECORDS):
+    time_id = random.randint(1, NUM_RECORDS)
+    loc_id = random.randint(1, NUM_RECORDS)
+    air_id = random.randint(1, NUM_RECORDS)
+    weather_id = random.randint(1, NUM_RECORDS)
+    health_id = random.randint(1, NUM_RECORDS)
+    demo_id = random.randint(1, NUM_RECORDS)
+    aqi = round(random.uniform(0, 500), 1)
+    poll_level = round(random.uniform(0, 100), 1)
+    cases = random.randint(1, 1000)
+    hum = round(random.uniform(30, 90), 1)
+    risk_score = round(random.uniform(0, 100), 1)
+    fact_data.append((time_id, loc_id, air_id, weather_id, health_id, demo_id, aqi, poll_level, cases, hum, risk_score))
+columns_fact = ['time_id', 'location_id', 'air_id', 'weather_id', 'health_id', 'demo_id', 'aqi_value', 'pollution_level', 'reported_cases', 'avg_humidity', 'health_risk_score']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = fact_data[i:i + BATCH_SIZE]
+    insert_batch('Fact_HealthRisk', columns_fact, batch)
+
+# ۸. Fact_IllnessCases
+print("Generating Fact IllnessCases data...")
+illness_data = []
+for _ in range(NUM_RECORDS):
+    time_id = random.randint(1, NUM_RECORDS)
+    loc_id = random.randint(1, NUM_RECORDS)
+    health_id = random.randint(1, NUM_RECORDS)
+    demo_id = random.randint(1, NUM_RECORDS)
+    case_count = random.randint(1, 500)
+    recovery = round(random.uniform(70, 95), 1)
+    mortality = round(random.uniform(0, 5), 1)
+    illness_data.append((time_id, loc_id, health_id, demo_id, case_count, recovery, mortality))
+columns_illness = ['time_id', 'location_id', 'health_id', 'demo_id', 'case_count', 'recovery_rate', 'mortality_rate']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = illness_data[i:i + BATCH_SIZE]
+    insert_batch('Fact_IllnessCases', columns_illness, batch)
+
+# ۹. Fact_PollutionEvents (سم شوی – impact_score range نور هم سخت کړم)
+print("Generating Fact PollutionEvents data...")
+poll_event_data = []
+for _ in range(NUM_RECORDS):
+    time_id = random.randint(1, NUM_RECORDS)
+    loc_id = random.randint(1, NUM_RECORDS)
+    air_id = random.randint(1, NUM_RECORDS)
+    event_type = random.choice(['Spike', 'Normal', 'Alert'])
+    severity = random.randint(1, 5)
+    impact = round(random.uniform(0, 99.9), 1)  # نور سخت: ماکس ۹۹.۹، چې round ته ۹۹.۹ شي
+    poll_event_data.append((time_id, loc_id, air_id, event_type, severity, impact))
+columns_poll = ['time_id', 'location_id', 'air_id', 'event_type', 'severity', 'impact_score']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = poll_event_data[i:i + BATCH_SIZE]
+    insert_batch('Fact_PollutionEvents', columns_poll, batch)
+    
+    
+# ۱۰. Users
+print("Generating Users data...")
+users_data = [(fake.user_name(), random.choice(['Doctor', 'Patient', 'Admin']), fake.email(), fake.date_this_decade()) for _ in range(NUM_RECORDS)]
+columns_users = ['username', 'role', 'email', 'created_date']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = users_data[i:i + BATCH_SIZE]
+    insert_batch('Users', columns_users, batch)
+
+# ۱۱. AuditLogs
+print("Generating AuditLogs data...")
+audit_data = [(random.randint(1, NUM_RECORDS), fake.sentence(nb_words=4), fake.date_time_this_decade(), random.choice(['Fact_HealthRisk', 'Users'])) for _ in range(NUM_RECORDS)]
+columns_audit = ['user_id', 'action', 'timestamp', 'table_name']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = audit_data[i:i + BATCH_SIZE]
+    insert_batch('AuditLogs', columns_audit, batch)
+
+# ۱۲. Metadata_Health
+print("Generating Metadata_Health data...")
+meta_data = [(random.randint(1, NUM_RECORDS), random.choice(['Mask', 'Vaccine', 'Isolation']), random.choice(['Yes', 'No'])) for _ in range(NUM_RECORDS)]
+columns_meta = ['health_id', 'prevention_measure', 'vaccine_availability']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = meta_data[i:i + BATCH_SIZE]
+    insert_batch('Metadata_Health', columns_meta, batch)
+
+# ۱۳. PatientRecords
+print("Generating PatientRecords data...")
+patient_data = [(random.randint(1, NUM_RECORDS), random.randint(1, NUM_RECORDS), random.randint(1, NUM_RECORDS), fake.word(), round(random.uniform(100, 10000), 1)) for _ in range(NUM_RECORDS)]
+columns_patient = ['location_id', 'time_id', 'demo_id', 'diagnosis', 'treatment_cost']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = patient_data[i:i + BATCH_SIZE]
+    insert_batch('PatientRecords', columns_patient, batch)
+
+# ۱۴. PollutionLogs
+print("Generating PollutionLogs data...")
+poll_log_data = [(random.randint(1, NUM_RECORDS), random.randint(1, NUM_RECORDS), random.randint(1, NUM_RECORDS), round(random.uniform(300, 1000), 1), round(random.uniform(10, 100), 1), fake.word()) for _ in range(NUM_RECORDS)]
+columns_poll_log = ['time_id', 'location_id', 'air_id', 'co2_level', 'no2_level', 'efficiency_measure']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = poll_log_data[i:i + BATCH_SIZE]
+    insert_batch('PollutionLogs', columns_poll_log, batch)
+
+# ۱۵. HealthAlerts
+print("Generating HealthAlerts data...")
+alert_data = [(random.randint(1, NUM_RECORDS), random.randint(1, NUM_RECORDS), random.randint(1, NUM_RECORDS), random.choice(['Warning', 'Emergency']), random.choice(['High', 'Low'])) for _ in range(NUM_RECORDS)]
+columns_alert = ['time_id', 'location_id', 'health_id', 'alert_type', 'alert_level']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = alert_data[i:i + BATCH_SIZE]
+    insert_batch('HealthAlerts', columns_alert, batch)
+
+cursor.close()
+conn.close()
+print("All 10K records inserted into HealthWeatherDB successfully!")D:\datawer\generate_agri_data.pyimport mysql.connector
+from faker import Faker
+import random
+from datetime import datetime, timedelta
+import numpy as np
+
+
+config = {
+    'user': 'root',
+    'password': 'Moh123', 
+    'host': 'localhost',
+    'database': 'AgriWeatherDB'
+}
+
+fake = Faker('en_US')
+conn = mysql.connector.connect(**config)
+cursor = conn.cursor()
+
+# د batch اندازه او ټول ریکارډونه
+BATCH_SIZE = 1000
+NUM_RECORDS = 10000
+
+def insert_batch(table_name, columns, data):
+    placeholders = ', '.join(['%s'] * len(columns))
+    sql = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders})"
+    cursor.executemany(sql, data)
+    conn.commit()
+    print(f"Inserted {len(data)} records into {table_name}")
+
+# ۱. Time_Dim
+print("Generating Time data...")
+time_data = []
+start_date = datetime(2020, 1, 1)
+for _ in range(NUM_RECORDS):
+    date = start_date + timedelta(days=random.randint(0, 1825))
+    day, month, year = date.day, date.month, date.year
+    season = random.choice(['Spring', 'Summer', 'Autumn', 'Winter'])
+    hour = random.randint(0, 23)
+    weekday = date.strftime('%A')
+    time_data.append((date, day, month, year, season, hour, weekday))
+columns_time = ['date', 'day', 'month', 'year', 'season', 'hour', 'weekday']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = time_data[i:i + BATCH_SIZE]
+    insert_batch('Time_Dim', columns_time, batch)
+
+# ۲. Location_Dim
+print("Generating Location data...")
+locations = ['Kabul', 'Herat', 'Mazar-i-Sharif', 'Kandahar', 'Jalalabad'] * (NUM_RECORDS // 5 + 1)
+location_data = []
+for loc in locations[:NUM_RECORDS]:
+    province = fake.city()
+    country = 'Afghanistan'
+    lat = round(random.uniform(30, 38), 6)
+    lon = round(random.uniform(60, 75), 6)
+    elevation = random.randint(500, 3000)
+    location_data.append((loc, province, country, lat, lon, elevation))
+columns_loc = ['city_name', 'province', 'country', 'latitude', 'longitude', 'elevation']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = location_data[i:i + BATCH_SIZE]
+    insert_batch('Location_Dim', columns_loc, batch)
+
+# ۳. Crop_Dim
+print("Generating Crop data...")
+crops = ['Wheat', 'Rice', 'Corn', 'Barley', 'Cotton', 'Potato'] * (NUM_RECORDS // 6 + 1)
+crop_data = []
+for crop in crops[:NUM_RECORDS]:
+    period = random.choice(['Spring', 'Summer', 'Autumn'])
+    water_req = round(random.uniform(50, 200), 1)
+    growth_days = random.randint(90, 180)
+    crop_data.append((crop, period, water_req, growth_days))
+columns_crop = ['crop_name', 'planting_period', 'water_requirement', 'growth_days']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = crop_data[i:i + BATCH_SIZE]
+    insert_batch('Crop_Dim', columns_crop, batch)
+
+# ۴. Weather_Dim
+print("Generating Weather data...")
+weather_data = []
+for _ in range(NUM_RECORDS):
+    temp_range = f"{random.randint(10, 40)}-{random.randint(20, 50)}°C"
+    hum_range = f"{random.randint(30, 70)}-{random.randint(60, 90)}%"
+    rain_range = f"{random.randint(0, 50)}-{random.randint(50, 200)}mm"
+    wind_speed = round(random.uniform(5, 25), 1)
+    weather_data.append((temp_range, hum_range, rain_range, wind_speed))
+columns_weather = ['temperature_range', 'humidity_range', 'rainfall_range', 'wind_speed']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = weather_data[i:i + BATCH_SIZE]
+    insert_batch('Weather_Dim', columns_weather, batch)
+
+# ۵. Soil_Dim
+print("Generating Soil data...")
+soil_data = []
+soil_types = ['Clay', 'Sandy', 'Loam', 'Silt']
+for _ in range(NUM_RECORDS):
+    soil_type = random.choice(soil_types)
+    soil_ph = round(random.uniform(5.0, 8.5), 1)
+    fertility = random.choice(['High', 'Medium', 'Low'])
+    soil_data.append((soil_type, soil_ph, fertility))
+columns_soil = ['soil_type', 'soil_ph', 'fertility_level']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = soil_data[i:i + BATCH_SIZE]
+    insert_batch('Soil_Dim', columns_soil, batch)
+
+# ۶. Fact_AgriForecast
+print("Generating Fact AgriForecast data...")
+fact_data = []
+for _ in range(NUM_RECORDS):
+    time_id = random.randint(1, NUM_RECORDS)
+    loc_id = random.randint(1, NUM_RECORDS)
+    crop_id = random.randint(1, NUM_RECORDS)
+    weather_id = random.randint(1, NUM_RECORDS)
+    soil_id = random.randint(1, NUM_RECORDS)
+    avg_temp = round(random.uniform(10, 40), 1)
+    total_rain = round(random.uniform(0, 100), 1)
+    moisture = round(random.uniform(20, 80), 1)
+    yield_pred = round(random.uniform(1000, 5000), 1)
+    accuracy = round(random.uniform(70, 95), 1)
+    fact_data.append((time_id, loc_id, crop_id, weather_id, soil_id, avg_temp, total_rain, moisture, yield_pred, accuracy))
+columns_fact = ['time_id', 'location_id', 'crop_id', 'weather_id', 'soil_id', 'avg_temperature', 'total_rainfall', 'soil_moisture', 'yield_prediction', 'planning_accuracy']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = fact_data[i:i + BATCH_SIZE]
+    insert_batch('Fact_AgriForecast', columns_fact, batch)
+
+# ۷. Fact_CropYield
+print("Generating Fact CropYield data...")
+yield_data = []
+for _ in range(NUM_RECORDS):
+    time_id = random.randint(1, NUM_RECORDS)
+    loc_id = random.randint(1, NUM_RECORDS)
+    crop_id = random.randint(1, NUM_RECORDS)
+    actual = round(random.uniform(1000, 6000), 1)
+    predicted = round(random.uniform(900, 5500), 1)
+    variance = round(abs(actual - predicted), 1)
+    yield_data.append((time_id, loc_id, crop_id, actual, predicted, variance))
+columns_yield = ['time_id', 'location_id', 'crop_id', 'actual_yield', 'predicted_yield', 'variance']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = yield_data[i:i + BATCH_SIZE]
+    insert_batch('Fact_CropYield', columns_yield, batch)
+# ۸. Fact_WeatherEvents (سم شوی – impact_score range نور هم سخت کړم)
+print("Generating Fact WeatherEvents data...")
+event_data = []
+for _ in range(NUM_RECORDS):
+    time_id = random.randint(1, NUM_RECORDS)
+    loc_id = random.randint(1, NUM_RECORDS)
+    weather_id = random.randint(1, NUM_RECORDS)
+    event_type = random.choice(['Storm', 'Drought', 'Flood', 'Normal'])
+    severity = random.randint(1, 5)
+    impact = round(random.uniform(0, 99.9), 1)  # نور سخت: ماکس ۹۹.۹، چې round ته ۹۹.۹ شي
+    event_data.append((time_id, loc_id, weather_id, event_type, severity, impact))
+columns_event = ['time_id', 'location_id', 'weather_id', 'event_type', 'severity', 'impact_score']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = event_data[i:i + BATCH_SIZE]
+    insert_batch('Fact_WeatherEvents', columns_event, batch)
+        
+# ۹. Users
+print("Generating Users data...")
+users_data = [(fake.user_name(), random.choice(['Farmer', 'Admin', 'Analyst']), fake.email(), fake.date_this_decade()) for _ in range(NUM_RECORDS)]
+columns_users = ['username', 'role', 'email', 'created_date']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = users_data[i:i + BATCH_SIZE]
+    insert_batch('Users', columns_users, batch)
+
+# ۱۰. AuditLogs
+print("Generating AuditLogs data...")
+audit_data = [(random.randint(1, NUM_RECORDS), fake.sentence(nb_words=4), fake.date_time_this_decade(), random.choice(['Fact_AgriForecast', 'Users'])) for _ in range(NUM_RECORDS)]
+columns_audit = ['user_id', 'action', 'timestamp', 'table_name']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = audit_data[i:i + BATCH_SIZE]
+    insert_batch('AuditLogs', columns_audit, batch)
+
+# ۱۱. Metadata_Crops
+print("Generating Metadata_Crops data...")
+meta_data = [(random.randint(1, NUM_RECORDS), random.choice(['High Nitrogen', 'Low Phosphorus']), random.choice(['High', 'Medium', 'Low'])) for _ in range(NUM_RECORDS)]
+columns_meta = ['crop_id', 'nutrient_level', 'pest_resistance']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = meta_data[i:i + BATCH_SIZE]
+    insert_batch('Metadata_Crops', columns_meta, batch)
+
+# ۱۲. SensorData
+print("Generating SensorData data...")
+sensor_data = [(random.randint(1, NUM_RECORDS), random.randint(1, NUM_RECORDS), random.choice(['Temperature', 'Humidity', 'Soil']), round(random.uniform(0, 100), 1)) for _ in range(NUM_RECORDS)]
+columns_sensor = ['location_id', 'time_id', 'sensor_type', 'reading_value']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = sensor_data[i:i + BATCH_SIZE]
+    insert_batch('SensorData', columns_sensor, batch)
+
+# ۱۳. FarmerProfiles
+print("Generating FarmerProfiles data...")
+profile_data = [(random.randint(1, NUM_RECORDS), fake.name(), round(random.uniform(1, 100), 1), fake.text(max_nb_chars=200)) for _ in range(NUM_RECORDS)]
+columns_profile = ['location_id', 'farmer_name', 'farm_size', 'crops_planted']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = profile_data[i:i + BATCH_SIZE]
+    insert_batch('FarmerProfiles', columns_profile, batch)
+
+# ۱۴. IrrigationLogs
+print("Generating IrrigationLogs data...")
+irr_data = [(random.randint(1, NUM_RECORDS), random.randint(1, NUM_RECORDS), random.randint(1, NUM_RECORDS), round(random.uniform(100, 1000), 1), round(random.uniform(70, 95), 1)) for _ in range(NUM_RECORDS)]
+columns_irr = ['time_id', 'location_id', 'crop_id', 'water_used', 'efficiency']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = irr_data[i:i + BATCH_SIZE]
+    insert_batch('IrrigationLogs', columns_irr, batch)
+
+# ۱۵. PestAlerts
+print("Generating PestAlerts data...")
+alert_data = [(random.randint(1, NUM_RECORDS), random.randint(1, NUM_RECORDS), random.randint(1, NUM_RECORDS), random.choice(['Aphid', 'Locust', 'Fungus']), random.choice(['High', 'Low'])) for _ in range(NUM_RECORDS)]
+columns_alert = ['time_id', 'location_id', 'crop_id', 'pest_type', 'alert_level']
+for i in range(0, NUM_RECORDS, BATCH_SIZE):
+    batch = alert_data[i:i + BATCH_SIZE]
+    insert_batch('PestAlerts', columns_alert, batch)
+
+cursor.close()
+conn.close()
+print("All 10K records inserted into AgriWeatherDB successfully!")D:\datawer\enhanced_elt_pipeline.pyimport mysql.connector
+import logging
+import json
+from datetime import datetime
+from tqdm import tqdm  # د progress bar لپاره
+
+# د Log تنظیم (append mode)
+logging.basicConfig(
+    filename='elt_log.txt',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    filemode='a'  # append mode
+)
+logger = logging.getLogger(__name__)
+
+# د config لوستل (معیاری)
+with open('config.json', 'r') as f:
+    config = json.load(f)
+
+source_configs = {
+    'agri': {'database': config['sources']['agri']},
+    'health': {'database': config['sources']['health']},
+    'integrated': {'database': config['sources']['integrated']}
+}
+target_config = {
+    'user': config['mysql']['user'],
+    'password': config['mysql']['password'],
+    'host': config['mysql']['host'],
+    'database': config['target']
+}
+
+# د ټارګټ ډیټابیس سره تړل (معیاري error handling)
+def connect_target():
+    try:
+        return mysql.connector.connect(**target_config)
+    except mysql.connector.Error as e:
+        logger.error("Connection error: %s", e)
+        raise
+
+# ۱. create_warehouse_tables
+def create_warehouse_tables():
+    conn = connect_target()
+    cursor = conn.cursor()
+    tables_sql = [
+        """CREATE TABLE IF NOT EXISTS Time_Dim (
+            time_id INT PRIMARY KEY AUTO_INCREMENT,
+            date DATE, day INT, month INT, year INT, season VARCHAR(20), hour INT, weekday VARCHAR(10)
+        )""",
+        """CREATE TABLE IF NOT EXISTS Location_Dim (
+            location_id INT PRIMARY KEY AUTO_INCREMENT,
+            city_name VARCHAR(100), province VARCHAR(100), country VARCHAR(50), latitude DECIMAL(10,8), longitude DECIMAL(11,8), population_density INT
+        )""",
+        """CREATE TABLE IF NOT EXISTS Crop_Dim (
+            crop_id INT PRIMARY KEY AUTO_INCREMENT,
+            crop_name VARCHAR(100), planting_period VARCHAR(50), water_requirement DECIMAL(5,2), growth_days INT
+        )""",
+        """CREATE TABLE IF NOT EXISTS AirQuality_Dim (
+            air_id INT PRIMARY KEY AUTO_INCREMENT,
+            pollution_level VARCHAR(50), aqi_range VARCHAR(50), main_pollutant VARCHAR(20), pm25_level DECIMAL(5,2)
+        )""",
+        """CREATE TABLE IF NOT EXISTS HealthCondition_Dim (
+            health_id INT PRIMARY KEY AUTO_INCREMENT,
+            disease_type VARCHAR(100), risk_level VARCHAR(20), symptom_severity INT
+        )""",
+        """CREATE TABLE IF NOT EXISTS Fact_AgriForecast (
+            forecast_id INT PRIMARY KEY AUTO_INCREMENT,
+            time_id INT, location_id INT, crop_id INT, weather_id INT, soil_id INT,
+            avg_temperature DECIMAL(5,2), total_rainfall DECIMAL(6,2), soil_moisture DECIMAL(5,2),
+            yield_prediction DECIMAL(8,2), planning_accuracy DECIMAL(5,2),
+            FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+            FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+            FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id)
+        )"""
+    ]
+    for sql in tqdm(tables_sql, desc="Creating tables"):
+        cursor.execute(sql)
+    conn.commit()
+    cursor.close()
+    conn.close()
+    logger.info("Warehouse tables created")
+
+# ۲-۵: Time_Dim (له Agri)
+def extract_time_dim_agri():
+    try:
+        conn = mysql.connector.connect(user=config['mysql']['user'], password=config['mysql']['password'], host=config['mysql']['host'], database=source_configs['agri']['database'])
+        cursor = conn.cursor()
+        cursor.execute("SELECT date, day, month, year, season, hour, weekday FROM Time_Dim")
+        data = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        logger.info("Extracted Time_Dim from Agri: %d rows", len(data))
+        return data
+    except mysql.connector.Error as e:
+        logger.error("Time extract error: %s", e)
+        return []
+
+def load_time_dim(data):
+    if not data:
+        logger.warning("No data to load for Time_Dim")
+        return
+    conn = connect_target()
+    cursor = conn.cursor()
+    columns = ['date', 'day', 'month', 'year', 'season', 'hour', 'weekday']
+    placeholders = ', '.join(['%s'] * len(columns))
+    sql = f"INSERT IGNORE INTO Time_Dim ({', '.join(columns)}) VALUES ({placeholders})"
+    for batch in tqdm(list(range(0, len(data), 1000)), desc="Loading Time_Dim"):
+        cursor.executemany(sql, data[batch:batch+1000])
+        conn.commit()
+    cursor.close()
+    conn.close()
+    logger.info("Loaded Time_Dim to Warehouse: %d rows", len(data))
+
+def transform_time_dim():
+    conn = connect_target()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE Time_Dim SET season = 'Unknown' WHERE season IS NULL")
+    conn.commit()
+    cursor.close()
+    conn.close()
+    logger.info("Transformed Time_Dim: Added defaults")
+
+def log_time_complete():
+    logger.info("Time_Dim subsystem complete")
+
+# ۶-۹: Location_Dim (له Health)
+def extract_location_dim_health():
+    try:
+        conn = mysql.connector.connect(user=config['mysql']['user'], password=config['mysql']['password'], host=config['mysql']['host'], database=source_configs['health']['database'])
+        cursor = conn.cursor()
+        cursor.execute("SELECT city_name, province, country, latitude, longitude, population_density FROM Location_Dim")
+        data = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        logger.info("Extracted Location_Dim from Health: %d rows", len(data))
+        return data
+    except mysql.connector.Error as e:
+        logger.error("Location extract error: %s", e)
+        return []
+
+def load_location_dim(data):
+    if not data:
+        logger.warning("No data to load for Location_Dim")
+        return
+    conn = connect_target()
+    cursor = conn.cursor()
+    columns = ['city_name', 'province', 'country', 'latitude', 'longitude', 'population_density']
+    placeholders = ', '.join(['%s'] * len(columns))
+    sql = f"INSERT IGNORE INTO Location_Dim ({', '.join(columns)}) VALUES ({placeholders})"
+    for batch in tqdm(list(range(0, len(data), 1000)), desc="Loading Location_Dim"):
+        cursor.executemany(sql, data[batch:batch+1000])
+        conn.commit()
+    cursor.close()
+    conn.close()
+    logger.info("Loaded Location_Dim to Warehouse: %d rows", len(data))
+
+def transform_location_dim():
+    conn = connect_target()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE Location_Dim SET population_density = 1000 WHERE population_density IS NULL")
+    conn.commit()
+    cursor.close()
+    conn.close()
+    logger.info("Transformed Location_Dim: Added defaults")
+
+def log_location_complete():
+    logger.info("Location_Dim subsystem complete")
+
+# ۱۰-۱۳: Crop_Dim (له Agri)
+def extract_crop_dim_agri():
+    try:
+        conn = mysql.connector.connect(user=config['mysql']['user'], password=config['mysql']['password'], host=config['mysql']['host'], database=source_configs['agri']['database'])
+        cursor = conn.cursor()
+        cursor.execute("SELECT crop_name, planting_period, water_requirement, growth_days FROM Crop_Dim")
+        data = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        logger.info("Extracted Crop_Dim from Agri: %d rows", len(data))
+        return data
+    except mysql.connector.Error as e:
+        logger.error("Crop extract error: %s", e)
+        return []
+
+def load_crop_dim(data):
+    if not data:
+        logger.warning("No data to load for Crop_Dim")
+        return
+    conn = connect_target()
+    cursor = conn.cursor()
+    columns = ['crop_name', 'planting_period', 'water_requirement', 'growth_days']
+    placeholders = ', '.join(['%s'] * len(columns))
+    sql = f"INSERT IGNORE INTO Crop_Dim ({', '.join(columns)}) VALUES ({placeholders})"
+    for batch in tqdm(list(range(0, len(data), 1000)), desc="Loading Crop_Dim"):
+        cursor.executemany(sql, data[batch:batch+1000])
+        conn.commit()
+    cursor.close()
+    conn.close()
+    logger.info("Loaded Crop_Dim to Warehouse: %d rows", len(data))
+
+def transform_crop_dim():
+    conn = connect_target()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE Crop_Dim SET growth_days = 120 WHERE growth_days IS NULL")
+    conn.commit()
+    cursor.close()
+    conn.close()
+    logger.info("Transformed Crop_Dim: Added defaults")
+
+def log_crop_complete():
+    logger.info("Crop_Dim subsystem complete")
+
+# ۱۴-۱۷: AirQuality_Dim (له Health)
+def extract_airquality_dim_health():
+    try:
+        conn = mysql.connector.connect(user=config['mysql']['user'], password=config['mysql']['password'], host=config['mysql']['host'], database=source_configs['health']['database'])
+        cursor = conn.cursor()
+        cursor.execute("SELECT pollution_level, aqi_range, main_pollutant, pm25_level FROM AirQuality_Dim")
+        data = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        logger.info("Extracted AirQuality_Dim from Health: %d rows", len(data))
+        return data
+    except mysql.connector.Error as e:
+        logger.error("AirQuality extract error: %s", e)
+        return []
+
+def load_airquality_dim(data):
+    if not data:
+        logger.warning("No data to load for AirQuality_Dim")
+        return
+    conn = connect_target()
+    cursor = conn.cursor()
+    columns = ['pollution_level', 'aqi_range', 'main_pollutant', 'pm25_level']
+    placeholders = ', '.join(['%s'] * len(columns))
+    sql = f"INSERT IGNORE INTO AirQuality_Dim ({', '.join(columns)}) VALUES ({placeholders})"
+    for batch in tqdm(list(range(0, len(data), 1000)), desc="Loading AirQuality_Dim"):
+        cursor.executemany(sql, data[batch:batch+1000])
+        conn.commit()
+    cursor.close()
+    conn.close()
+    logger.info("Loaded AirQuality_Dim to Warehouse: %d rows", len(data))
+
+def transform_airquality_dim():
+    conn = connect_target()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE AirQuality_Dim SET pm25_level = 50.0 WHERE pm25_level IS NULL")
+    conn.commit()
+    cursor.close()
+    conn.close()
+    logger.info("Transformed AirQuality_Dim: Added defaults")
+
+def log_airquality_complete():
+    logger.info("AirQuality_Dim subsystem complete")
+
+# ۱۸-۲۱: HealthCondition_Dim (له Integrated)
+def extract_healthcondition_dim_integrated():
+    try:
+        conn = mysql.connector.connect(user=config['mysql']['user'], password=config['mysql']['password'], host=config['mysql']['host'], database=source_configs['integrated']['database'])
+        cursor = conn.cursor()
+        cursor.execute("SELECT disease_type, risk_level, symptom_severity FROM HealthCondition_Dim")
+        data = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        logger.info("Extracted HealthCondition_Dim from Integrated: %d rows", len(data))
+        return data
+    except mysql.connector.Error as e:
+        logger.error("HealthCondition extract error: %s", e)
+        return []
+
+def load_healthcondition_dim(data):
+    if not data:
+        logger.warning("No data to load for HealthCondition_Dim")
+        return
+    conn = connect_target()
+    cursor = conn.cursor()
+    columns = ['disease_type', 'risk_level', 'symptom_severity']
+    placeholders = ', '.join(['%s'] * len(columns))
+    sql = f"INSERT IGNORE INTO HealthCondition_Dim ({', '.join(columns)}) VALUES ({placeholders})"
+    for batch in tqdm(list(range(0, len(data), 1000)), desc="Loading HealthCondition_Dim"):
+        cursor.executemany(sql, data[batch:batch+1000])
+        conn.commit()
+    cursor.close()
+    conn.close()
+    logger.info("Loaded HealthCondition_Dim to Warehouse: %d rows", len(data))
+
+def transform_healthcondition_dim():
+    conn = connect_target()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE HealthCondition_Dim SET symptom_severity = 5 WHERE symptom_severity IS NULL")
+    conn.commit()
+    cursor.close()
+    conn.close()
+    logger.info("Transformed HealthCondition_Dim: Added defaults")
+
+def log_healthcondition_complete():
+    logger.info("HealthCondition_Dim subsystem complete")
+
+# ۲۲-۲۵: Fact_AgriForecast (له Agri – سم شوی نوم: agriforecast)
+def extract_fact_agriforecast_agri(): 
+    try:
+        conn = mysql.connector.connect(user=config['mysql']['user'], password=config['mysql']['password'], host=config['mysql']['host'], database=source_configs['agri']['database'])
+        cursor = conn.cursor()
+        cursor.execute("SELECT time_id, location_id, crop_id, weather_id, soil_id, avg_temperature, total_rainfall, soil_moisture, yield_prediction, planning_accuracy FROM Fact_AgriForecast")
+        data = cursor.fetchall()
+        cursor.close()
+        conn.close()
+        logger.info("Extracted Fact_AgriForecast from Agri: %d rows", len(data))
+        return data
+    except mysql.connector.Error as e:
+        logger.error("Fact_AgriForecast extract error: %s", e)
+        return []
+
+def load_fact_agriforecast(data):
+    if not data:
+        logger.warning("No data to load for Fact_AgriForecast")
+        return
+    conn = connect_target()
+    cursor = conn.cursor()
+    columns = ['time_id', 'location_id', 'crop_id', 'weather_id', 'soil_id', 'avg_temperature', 'total_rainfall', 'soil_moisture', 'yield_prediction', 'planning_accuracy']
+    placeholders = ', '.join(['%s'] * len(columns))
+    sql = f"INSERT IGNORE INTO Fact_AgriForecast ({', '.join(columns)}) VALUES ({placeholders})"
+    for batch in tqdm(list(range(0, len(data), 1000)), desc="Loading Fact_AgriForecast"):
+        cursor.executemany(sql, data[batch:batch+1000])
+        conn.commit()
+    cursor.close()
+    conn.close()
+    logger.info("Loaded Fact_AgriForecast to Warehouse: %d rows", len(data))
+
+def transform_fact_agriforecast():
+    conn = connect_target()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE Fact_AgriForecast SET yield_prediction = yield_prediction * 1.05 WHERE planning_accuracy > 80")
+    conn.commit()
+    cursor.close()
+    conn.close()
+    logger.info("Transformed Fact_AgriForecast: Adjusted yields")
+
+def log_fact_complete():
+    logger.info("Fact_AgriForecast subsystem complete")
+
+# ۲۶-۲۹: Merge & Log
+def merge_dimensions():
+    conn = connect_target()
+    cursor = conn.cursor()
+    cursor.execute("CREATE OR REPLACE VIEW Merged_Dims AS SELECT t.*, l.city_name FROM Time_Dim t JOIN Location_Dim l ON t.time_id = l.location_id")
+    conn.commit()
+    cursor.close()
+    conn.close()
+    logger.info("Merged Dimensions View created")
+
+def log_summary():
+    logger.info("ELT Pipeline Complete: All 34 subsystems executed successfully")
+    print("Log summary appended to elt_log.txt")
+
+# ۳۰-۳۴: Cleanup, Backup, Final Report
+def cleanup_temp():
+    conn = connect_target()
+    cursor = conn.cursor()
+    cursor.execute("DROP TABLE IF EXISTS Temp_Merge")
+    conn.commit()
+    cursor.close()
+    conn.close()
+    logger.info("Cleanup: Temp tables dropped")
+
+def backup_warehouse():
+    import subprocess
+    subprocess.run(["mysqldump", "-u", config['mysql']['user'], "-p" + config['mysql']['password'], config['target'], ">", "warehouse_backup.sql"], shell=True)
+    logger.info("Backup created: warehouse_backup.sql")
+
+def final_report():
+    conn = connect_target()
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM Fact_AgriForecast")
+    count = cursor.fetchone()[0]
+    cursor.execute("SELECT AVG(yield_prediction) FROM Fact_AgriForecast")
+    avg_yield = cursor.fetchone()[0]
+    cursor.close()
+    conn.close()
+    logger.info("Final Report: Total records: %d, Avg Yield: %.2f", count, avg_yield)
+    print(f"Final Report: {count} records loaded, Avg Yield: {avg_yield:.2f}")
+
+def log_cleanup_complete():
+    logger.info("Cleanup subsystem complete")
+
+def log_backup_complete():
+    logger.info("Backup subsystem complete")
+
+# د ELT Pipeline چلول (Main)
+def run_elt_pipeline():
+    logger.info("Starting ELT Pipeline - 34 Subsystems")
+    create_warehouse_tables()  # ۱
+
+    # Time_Dim
+    time_data = extract_time_dim_agri()  # ۲
+    load_time_dim(time_data)  # ۳
+    transform_time_dim()  # ۴
+    log_time_complete()  # ۵
+
+    # Location_Dim
+    loc_data = extract_location_dim_health()  # ۶
+    load_location_dim(loc_data)  # ۷
+    transform_location_dim()  # ۸
+    log_location_complete()  # ۹
+
+    # Crop_Dim
+    crop_data = extract_crop_dim_agri()  # ۱۰
+    load_crop_dim(crop_data)  # ۱۱
+    transform_crop_dim()  # ۱۲
+    log_crop_complete()  # ۱۳
+
+    # AirQuality_Dim
+    air_data = extract_airquality_dim_health()  # ۱۴
+    load_airquality_dim(air_data)  # ۱۵
+    transform_airquality_dim()  # ۱۶
+    log_airquality_complete()  # ۱۷
+
+    # HealthCondition_Dim
+    health_data = extract_healthcondition_dim_integrated()  # ۱۸
+    load_healthcondition_dim(health_data)  # ۱۹
+    transform_healthcondition_dim()  # ۲۰
+    log_healthcondition_complete()  # ۲۱
+
+    # Fact_AgriForecast
+    fact_data = extract_fact_agriforecast_agri()  # ۲۲ – سم شوی نوم
+    load_fact_agriforecast(fact_data)  # ۲۳
+    transform_fact_agriforecast()  # ۲۴
+    log_fact_complete()  # ۲۵
+
+    # عمومي
+    merge_dimensions()  # ۲۶
+    log_summary()  # ۲۷
+    cleanup_temp()  # ۲۸
+    backup_warehouse()  # ۲۹
+    final_report()  # ۳۰
+    log_cleanup_complete()  # ۳۱
+    log_backup_complete()  # ۳۲
+    logger.info("Pipeline 100% Complete")  # ۳۳
+    print("Pipeline 100% Complete!")  # ۳۴
+
+if __name__ == "__main__":
+    run_elt_pipeline()D:\datawer\warehouse_backup.sql دا فایل  ډیر غټ دی D:\datawer\dashboard.py# ====================== افغانستان سمارټ کرنه او روغتیا ډشبورډ ۲۰۲۵ ======================
+# جوړونکی: تاسو + Grok
+# تاریخ: ۲۰۲۵ – بشپړ کار کوي
+
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import json
+import os
+from sqlalchemy import create_engine
+
+# ----------------------- ۱. د پاڼې اساسي تنظیمات -----------------------
+st.set_page_config(
+    page_title="افغانستان سمارټ کرنه او روغتیا ډشبورډ ۲۰۲۵",
+    page_icon="wheat",
+    layout="wide"
+)
+
+st.markdown("<h1 style='text-align: center; color: #1E88E5;'>افغانستان سمارټ کرنه او روغتیا ډشبورډ ۲۰۲۵</h1>", unsafe_allow_html=True)
+st.markdown("<h3 style='text-align: center; color: #2E7D32;'>د هوا، ککړتیا او فصلونو بشپړ تحلیل</h3>", unsafe_allow_html=True)
+
+# ----------------------- ۲. د MySQL ډیټابیس اتصال (اوس ۱۰۰٪ کار کوي) ----------------
+@st.cache_resource
+def get_engine():
+    """SQLAlchemy engine جوړوي او یوازې یو ځل جوړیږي"""
+    return create_engine(
+        "mysql+pymysql://root:Moh123@localhost/WeatherDataWarehouse",
+        pool_pre_ping=True,
+        pool_recycle=3600,
+        future=True 
+    )
+
+engine = get_engine()
+
+# ---------------- ۳. د افغانستان ولایتونو نقشه (GeoJSON) ----------------
+@st.cache_data(ttl="30d")  # ۳۰ ورځې کیچ ساتي
+def load_afg_geojson():
+    file_path = "geoBoundaries-AFG-ADM1_simplified.geojson"
+    if os.path.exists(file_path):
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        st.success("ولایتي GeoJSON له محلي فایل څخه لوسته شوه!")
+        return data
+    else:
+        st.error("geoBoundaries-AFG-ADM1_simplified.geojson فایل ونه موندل شو!")
+        return None
+
+geojson = load_afg_geojson()
+
+# ---------------- ۴. له ډیټابیس څخه ولایتونه او فصلونه راویستل (مهم فکس!) ----------------
+# دا طریقه په Python 3.12 + pandas 2.2 کې یوازینی تضمین شوی حل دی
+with engine.connect() as raw_conn:
+    db_connection = raw_conn.connection  
+
+    provinces = pd.read_sql(
+        "SELECT DISTINCT province FROM Location_Dim ORDER BY province",
+        con=db_connection
+    )['province'].tolist()
+
+    crops = pd.read_sql(
+        "SELECT crop_name FROM Crop_Dim ORDER BY crop_name",
+        con=db_connection
+    )['crop_name'].tolist()
+
+# که ډاټابیس خالي وي، اپ بند نه کړي بلکې خبرتیا ورکړي
+if not crops:
+    st.error("د Crop_Dim جدول خالي دی! مهرباني وکړئ ډاټا داخل کړئ.")
+    st.stop()
+
+# ---------------- ۵. سایډبار – فلټرونه ----------------
+st.sidebar.image("https://upload.wikimedia.org/wikipedia/commons/thumb/9/9a/Flag_of_Afghanistan.svg/800px-Flag_of_Afghanistan.svg.png", width=150)
+st.sidebar.markdown("## فلټرونه")
+
+selected_province = st.sidebar.selectbox("ولایت", ["ټول افغانستان"] + provinces)
+
+# د تکراري فصلونو مخنیوی (لکه Barley درې ځله نه ښکاره کیږي)
+default_crops = [c for c in ["غنم", "وریجې", "جوار", "ماش", "کچالو", "نخود"] if c in crops]
+if not default_crops and crops:
+    default_crops = crops[:5]  # لومړي ۵ فصلونه ښيي
+
+selected_crop = st.sidebar.multiselect("فصلونه", crops, default=default_crops)
+year_range = st.sidebar.slider("کلونه", 2000, 2025, (2015, 2025), step=1)
+
+# ---------------- ۶. اصلي کوېري (فلټرونه پلي کیږي) ----------------
+params = [year_range[0], year_range[1]]
+where_clauses = []
+
+if selected_province != "ټول افغانستان":
+    where_clauses.append("l.province = %s")
+    params.append(selected_province)
+
+if selected_crop:
+    placeholders = ",".join(["%s"] * len(selected_crop))
+    where_clauses.append(f"c.crop_name IN ({placeholders})")
+    params.extend(selected_crop)
+
+where_str = " AND ".join(where_clauses) if where_clauses else ""
+
+sql = f"""
+SELECT 
+    t.year, l.province, c.crop_name, 
+    f.yield_prediction, f.avg_temperature, f.total_rainfall
+FROM Fact_AgriForecast f
+JOIN Time_Dim t ON f.time_id = t.time_id
+JOIN Location_Dim l ON f.location_id = l.location_id
+JOIN Crop_Dim c ON f.crop_id = c.crop_id
+WHERE t.year BETWEEN %s AND %s
+{ "AND " + where_str if where_str else "" }
+"""
+
+# اصلي ډاټا راویستل
+with engine.connect() as raw_conn:
+    db_connection = raw_conn.connection
+    df = pd.read_sql(sql, con=db_connection, params=params)
+
+if df.empty:
+    st.warning("د انتخاب شوي فلټرونو سره ډاټا نشته! فلټرونه بدل کړئ.")
+    st.stop()
+
+# ---------------- ۷. کلیدي شاخصونه (KPIs) ----------------
+c1, c2, c3, c4 = st.columns(4)
+with c1:
+    st.metric("اوسط حاصل", f"{df['yield_prediction'].mean():,.0f} kg/ha")
+with c2:
+    top = df.loc[df['yield_prediction'].idxmax()]
+    st.metric("غوره ولایت", f"{top['province']} ({top['crop_name']})")
+with c3:
+    st.metric("اوسط تودوخه", f"{df['avg_temperature'].mean():.1f}°C")
+with c4:
+    st.metric("ټول باران", f"{df['total_rainfall'].sum():,.0f} mm")
+
+# ---------------- ۸. چارټونه ----------------
+col1, col2 = st.columns(2)
+
+with col1:
+    prov_df = df.groupby("province", as_index=False)["yield_prediction"].mean() \
+                 .sort_values("yield_prediction", ascending=False)
+    fig_bar = px.bar(prov_df, x="province", y="yield_prediction",
+                     title="د ولایتونو په اساس اوسط حاصلات",
+                     color="yield_prediction", color_continuous_scale="YlOrRd")
+    st.plotly_chart(fig_bar, use_container_width=True)
+
+with col2:
+    year_df = df.groupby("year", as_index=False)["yield_prediction"].mean()
+    fig_line = px.line(year_df, x="year", y="yield_prediction",
+                       title="کلني حاصلات (kg/ha)", markers=True, color_discrete_sequence=["#1E88E5"])
+    st.plotly_chart(fig_line, use_container_width=True)
+
+# ---------------- ۹. د ولایتونو انګلیسي نومونه (د نقشې لپاره) ----------------
+province_mapping = {
+    "کابل": "Kabul", "هرات": "Herat", "کندهار": "Kandahar", "بلخ": "Balkh",
+    "ننګرهار": "Nangarhar", "قندوز": "Kunduz", "هلمند": "Helmand", "بغلان": "Baghlan",
+    "فراه": "Farah", "غزنی": "Ghazni", "بدخشان": "Badakhshan", "تخار": "Takhar",
+    "جوزجان": "Jowzjan", "سمنگان": "Samangan", "سرپل": "Sar-e-Pul", "فاریاب": "Faryab",
+    "بامیان": "Bamyan", "کاپیسا": "Kapisa", "کنر": "Kunar", "لغمان": "Laghman",
+    "لوګر": "Logar", "نورستان": "Nuristan", "پکتیا": "Paktia", "پکتیکا": "Paktika",
+    "پنجشیر": "Panjshir", "پروان": "Parwan", "دایکندی": "Daykundi", "غور": "Ghor",
+    "زابل": "Zabul", "اروزگان": "Uruzgan", "نیمروز": "Nimroz", "وردک": "Wardak",
+    "بدغیس": "Badghis", "کونړ": "Kunar"
+}
+
+map_df = df.groupby("province", as_index=False)["yield_prediction"].mean()
+map_df["province_en"] = map_df["province"].map(province_mapping).fillna(map_df["province"])
+
+# ---------------- ۱۰. نقشه – نوې معیاري طریقه (Plotly 2025) ----------------
+st.markdown("### د افغانستان د حاصلاتو ولایتي نقشه")
+
+if geojson:
+    fig_map = px.choropleth(
+        map_df,
+        geojson=geojson,
+        locations="province_en",
+        featureidkey="properties.shapeName",  # دقیق د geoBoundaries لپاره
+        color="yield_prediction",
+        color_continuous_scale="Greens",
+        labels={"yield_prediction": "اوسط حاصل (kg/ha)"},
+        hover_name="province",
+        title="د ولایتونو په اساس اوسط حاصلات"
+    )
+
+    fig_map.update_geos(fitbounds="locations", visible=False)
+    fig_map.update_layout(
+        margin={"r": 0, "t": 60, "l": 0, "b": 0},
+        height=700,
+        geo=dict(
+            projection_type="mercator",
+            center={"lat": 33.5, "lon": 66},
+            projection_scale=7
+        )
+    )
+    st.plotly_chart(fig_map, use_container_width=True)
+
+else:
+    st.info("نقشه نشي ښودل کېدای – دلته بدیل چارټ:")
+    fig_alt = px.bar(map_df.sort_values("yield_prediction", ascending=False),
+                     x="yield_prediction", y="province", orientation="h",
+                     color="yield_prediction", color_continuous_scale="Greens")
+    st.plotly_chart(fig_alt, use_container_width=True)
+
+st.markdown("---")
+st.caption("د افغانستان سمارټ کرنې او روغتیا ډشبورډ • ۲۰۲۵ | جوړونکی: محمدي + ")D:\datawer\config_dashboard.json{
+  "mysql": {
+    "user": "root",
+    "password": "Moh123",
+    "host": "localhost",
+    "database": "WeatherDataWarehouse"
+  }
+} دا دی راته سم یی کړه او زما له کوډ یو شی مه کموه چی بیا نورمشکل ور کوی او پورته ټول شیان پ:ی عملی کړه او کمینټ هم در کړه په کوډ کی    زما په پروژه کی یی امپلیمټ کړه  او څواب یی په پښتو راکړه او زما زما د ډیټابیس کوډ دی 
+mysql>
+mysql> -- د درې ډیټابیسونو جوړول
+mysql> CREATE DATABASE IF NOT EXISTS AgriWeatherDB;
+Query OK, 1 row affected (0.03 sec)
+
+mysql> CREATE DATABASE IF NOT EXISTS HealthWeatherDB;
+Query OK, 1 row affected (0.02 sec)
+
+mysql> CREATE DATABASE IF NOT EXISTS IntegratedWeatherDB;
+Query OK, 1 row affected (0.01 sec)
+
+mysql>
+mysql> -- د هر ډیټابیس لپاره default engine او charset تنظیم
+mysql> USE AgriWeatherDB;
+Database changed
+mysql> SET default_storage_engine = 'InnoDB';
+Query OK, 0 rows affected (0.01 sec)
+
+mysql> ALTER DATABASE AgriWeatherDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+Query OK, 1 row affected (0.01 sec)
+
+mysql>
+mysql> USE HealthWeatherDB;
+Database changed
+mysql> SET default_storage_engine = 'InnoDB';
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> ALTER DATABASE HealthWeatherDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+Query OK, 1 row affected (0.02 sec)
+
+mysql>
+mysql> USE IntegratedWeatherDB;
+Database changed
+mysql> SET default_storage_engine = 'InnoDB';
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> ALTER DATABASE IntegratedWeatherDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+Query OK, 1 row affected (0.01 sec)
+
+mysql>
+mysql> -- د سرعت لپاره indexes فعال کړئ (عمومي)
+mysql> CREATE INDEX IF NOT EXISTS idx_time ON Time_Dim(time_id);  -- هر ډیټابیس کې تکرار کړئ که اړتیا وي
+ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IF NOT EXISTS idx_time ON Time_Dim(time_id)' at line 1
+mysql>
+mysql>
+mysql>
+mysql>
+mysql>
+mysql>
+mysql> USE AgriWeatherDB;
+Database changed
+mysql>
+mysql> -- ۱. Time Dimension
+mysql> CREATE TABLE IF NOT EXISTS Time_Dim (
+    ->     time_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     date DATE,
+    ->     day INT,
+    ->     month INT,
+    ->     year INT,
+    ->     season VARCHAR(20),
+    ->     hour INT,
+    ->     weekday VARCHAR(10)
+    -> );
+Query OK, 0 rows affected (0.12 sec)
+
+mysql>
+mysql> -- ۲. Location Dimension
+mysql> CREATE TABLE IF NOT EXISTS Location_Dim (
+    ->     location_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     city_name VARCHAR(100),
+    ->     province VARCHAR(100),
+    ->     country VARCHAR(50),
+    ->     latitude DECIMAL(10,8),
+    ->     longitude DECIMAL(11,8),
+    ->     elevation INT
+    -> );
+Query OK, 0 rows affected (0.16 sec)
+
+mysql>
+mysql> -- ۳. Crop Dimension
+mysql> CREATE TABLE IF NOT EXISTS Crop_Dim (
+    ->     crop_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     crop_name VARCHAR(100),
+    ->     planting_period VARCHAR(50),
+    ->     water_requirement DECIMAL(5,2),
+    ->     growth_days INT
+    -> );
+Query OK, 0 rows affected (0.05 sec)
+
+mysql>
+mysql> -- ۴. Weather Dimension
+mysql> CREATE TABLE IF NOT EXISTS Weather_Dim (
+    ->     weather_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     temperature_range VARCHAR(50),
+    ->     humidity_range VARCHAR(50),
+    ->     rainfall_range VARCHAR(50),
+    ->     wind_speed DECIMAL(4,2)
+    -> );
+Query OK, 0 rows affected (0.13 sec)
+
+mysql>
+mysql> -- ۵. Soil Dimension
+mysql> CREATE TABLE IF NOT EXISTS Soil_Dim (
+    ->     soil_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     soil_type VARCHAR(50),
+    ->     soil_ph DECIMAL(3,2),
+    ->     fertility_level VARCHAR(20)
+    -> );
+Query OK, 0 rows affected (0.16 sec)
+
+mysql>
+mysql> -- فکت ټیبلونه
+mysql> -- ۶. Fact Agri Forecast
+mysql> CREATE TABLE IF NOT EXISTS Fact_AgriForecast (
+    ->     forecast_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     crop_id INT,
+    ->     weather_id INT,
+    ->     soil_id INT,
+    ->     avg_temperature DECIMAL(5,2),
+    ->     total_rainfall DECIMAL(6,2),
+    ->     soil_moisture DECIMAL(5,2),
+    ->     yield_prediction DECIMAL(8,2),
+    ->     planning_accuracy DECIMAL(5,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id),
+    ->     FOREIGN KEY (weather_id) REFERENCES Weather_Dim(weather_id),
+    ->     FOREIGN KEY (soil_id) REFERENCES Soil_Dim(soil_id)
+    -> );
+Query OK, 0 rows affected (0.18 sec)
+
+mysql>
+mysql> -- ۷. Fact Crop Yield
+mysql> CREATE TABLE IF NOT EXISTS Fact_CropYield (
+    ->     yield_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     crop_id INT,
+    ->     actual_yield DECIMAL(8,2),
+    ->     predicted_yield DECIMAL(8,2),
+    ->     variance DECIMAL(6,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id)
+    -> );
+Query OK, 0 rows affected (0.13 sec)
+
+mysql>
+mysql> -- ۸. Fact Weather Events
+mysql> CREATE TABLE IF NOT EXISTS Fact_WeatherEvents (
+    ->     event_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     weather_id INT,
+    ->     event_type VARCHAR(50),
+    ->     severity INT,
+    ->     impact_score DECIMAL(4,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (weather_id) REFERENCES Weather_Dim(weather_id)
+    -> );
+Query OK, 0 rows affected (0.14 sec)
+
+mysql>
+mysql> -- اضافي ټیبلونه
+mysql> -- ۹. Users
+mysql> CREATE TABLE IF NOT EXISTS Users (
+    ->     user_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     username VARCHAR(50),
+    ->     role VARCHAR(30),
+    ->     email VARCHAR(100),
+    ->     created_date DATE
+    -> );
+Query OK, 0 rows affected (0.05 sec)
+
+mysql>
+mysql> -- ۱۰. AuditLogs
+mysql> CREATE TABLE IF NOT EXISTS AuditLogs (
+    ->     log_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     user_id INT,
+    ->     action VARCHAR(100),
+    ->     timestamp DATETIME,
+    ->     table_name VARCHAR(50),
+    ->     FOREIGN KEY (user_id) REFERENCES Users(user_id)
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql>
+mysql> -- ۱۱. Metadata_Crops
+mysql> CREATE TABLE IF NOT EXISTS Metadata_Crops (
+    ->     meta_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     crop_id INT,
+    ->     nutrient_level VARCHAR(50),
+    ->     pest_resistance VARCHAR(30),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id)
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql>
+mysql> -- ۱۲. SensorData
+mysql> CREATE TABLE IF NOT EXISTS SensorData (
+    ->     sensor_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     location_id INT,
+    ->     time_id INT,
+    ->     sensor_type VARCHAR(50),
+    ->     reading_value DECIMAL(6,2),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id)
+    -> );
+Query OK, 0 rows affected (0.08 sec)
+
+mysql>
+mysql> -- ۱۳. FarmerProfiles
+mysql> CREATE TABLE IF NOT EXISTS FarmerProfiles (
+    ->     profile_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     location_id INT,
+    ->     farmer_name VARCHAR(100),
+    ->     farm_size DECIMAL(6,2),
+    ->     crops_planted TEXT,
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id)
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql>
+mysql> -- ۱۴. IrrigationLogs
+mysql> CREATE TABLE IF NOT EXISTS IrrigationLogs (
+    ->     irr_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     crop_id INT,
+    ->     water_used DECIMAL(7,2),
+    ->     efficiency DECIMAL(5,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id)
+    -> );
+Query OK, 0 rows affected (0.08 sec)
+
+mysql>
+mysql> -- ۱۵. PestAlerts
+mysql> CREATE TABLE IF NOT EXISTS PestAlerts (
+    ->     alert_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     crop_id INT,
+    ->     pest_type VARCHAR(50),
+    ->     alert_level VARCHAR(20),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id)
+    -> );
+Query OK, 0 rows affected (0.08 sec)
+
+mysql>
+mysql>
+mysql>
+mysql>
+mysql> USE HealthWeatherDB;
+Database changed
+mysql>
+mysql> -- ۱. Time Dimension (مشترکه)
+mysql> CREATE TABLE IF NOT EXISTS Time_Dim (
+    ->     time_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     date DATE,
+    ->     day INT,
+    ->     month INT,
+    ->     year INT,
+    ->     season VARCHAR(20),
+    ->     hour INT,
+    ->     weekday VARCHAR(10)
+    -> );
+Query OK, 0 rows affected (0.27 sec)
+
+mysql>
+mysql> -- ۲. Location Dimension (مشترکه)
+mysql> CREATE TABLE IF NOT EXISTS Location_Dim (
+    ->     location_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     city_name VARCHAR(100),
+    ->     province VARCHAR(100),
+    ->     country VARCHAR(50),
+    ->     latitude DECIMAL(10,8),
+    ->     longitude DECIMAL(11,8),
+    ->     population_density INT
+    -> );
+Query OK, 0 rows affected (0.23 sec)
+
+mysql>
+mysql> -- ۳. Air Quality Dimension
+mysql> CREATE TABLE IF NOT EXISTS AirQuality_Dim (
+    ->     air_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     pollution_level VARCHAR(50),
+    ->     aqi_range VARCHAR(50),
+    ->     main_pollutant VARCHAR(20),
+    ->     pm25_level DECIMAL(5,2)
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql>
+mysql> -- ۴. Weather Dimension (مشترکه، روغتیا سره تړلی)
+mysql> CREATE TABLE IF NOT EXISTS Weather_Dim (
+    ->     weather_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     temperature_range VARCHAR(50),
+    ->     humidity_range VARCHAR(50),
+    ->     rainfall_range VARCHAR(50),
+    ->     wind_speed DECIMAL(4,2)
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql>
+mysql> -- ۵. Health Condition Dimension
+mysql> CREATE TABLE IF NOT EXISTS HealthCondition_Dim (
+    ->     health_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     disease_type VARCHAR(100),
+    ->     risk_level VARCHAR(20),
+    ->     symptom_severity INT
+    -> );
+Query OK, 0 rows affected (0.08 sec)
+
+mysql>
+mysql> -- ۶. Demographic Dimension
+mysql> CREATE TABLE IF NOT EXISTS Demographic_Dim (
+    ->     demo_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     age_group VARCHAR(30),
+    ->     gender VARCHAR(10),
+    ->     vulnerability_level VARCHAR(20)
+    -> );
+Query OK, 0 rows affected (0.03 sec)
+
+mysql>
+mysql> -- فکت ټیبلونه
+mysql> -- ۷. Fact Health Risk
+mysql> CREATE TABLE IF NOT EXISTS Fact_HealthRisk (
+    ->     risk_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     air_id INT,
+    ->     weather_id INT,
+    ->     health_id INT,
+    ->     demo_id INT,
+    ->     aqi_value DECIMAL(6,2),
+    ->     pollution_level DECIMAL(6,2),
+    ->     reported_cases INT,
+    ->     avg_humidity DECIMAL(5,2),
+    ->     health_risk_score DECIMAL(5,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (air_id) REFERENCES AirQuality_Dim(air_id),
+    ->     FOREIGN KEY (weather_id) REFERENCES Weather_Dim(weather_id),
+    ->     FOREIGN KEY (health_id) REFERENCES HealthCondition_Dim(health_id),
+    ->     FOREIGN KEY (demo_id) REFERENCES Demographic_Dim(demo_id)
+    -> );
+Query OK, 0 rows affected (0.23 sec)
+
+mysql>
+mysql> -- ۸. Fact Illness Cases
+mysql> CREATE TABLE IF NOT EXISTS Fact_IllnessCases (
+    ->     case_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     health_id INT,
+    ->     demo_id INT,
+    ->     case_count INT,
+    ->     recovery_rate DECIMAL(5,2),
+    ->     mortality_rate DECIMAL(5,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (health_id) REFERENCES HealthCondition_Dim(health_id),
+    ->     FOREIGN KEY (demo_id) REFERENCES Demographic_Dim(demo_id)
+    -> );
+Query OK, 0 rows affected (0.17 sec)
+
+mysql>
+mysql> -- ۹. Fact Pollution Events
+mysql> CREATE TABLE IF NOT EXISTS Fact_PollutionEvents (
+    ->     event_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     air_id INT,
+    ->     event_type VARCHAR(50),
+    ->     severity INT,
+    ->     impact_score DECIMAL(4,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (air_id) REFERENCES AirQuality_Dim(air_id)
+    -> );
+Query OK, 0 rows affected (0.11 sec)
+
+mysql>
+mysql> -- اضافي ټیبلونه
+mysql> -- ۱۰. Users
+mysql> CREATE TABLE IF NOT EXISTS Users (
+    ->     user_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     username VARCHAR(50),
+    ->     role VARCHAR(30),
+    ->     email VARCHAR(100),
+    ->     created_date DATE
+    -> );
+Query OK, 0 rows affected (0.05 sec)
+
+mysql>
+mysql> -- ۱۱. AuditLogs
+mysql> CREATE TABLE IF NOT EXISTS AuditLogs (
+    ->     log_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     user_id INT,
+    ->     action VARCHAR(100),
+    ->     timestamp DATETIME,
+    ->     table_name VARCHAR(50),
+    ->     FOREIGN KEY (user_id) REFERENCES Users(user_id)
+    -> );
+Query OK, 0 rows affected (0.10 sec)
+
+mysql>
+mysql> -- ۱۲. Metadata_Health
+mysql> CREATE TABLE IF NOT EXISTS Metadata_Health (
+    ->     meta_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     health_id INT,
+    ->     prevention_measure VARCHAR(100),
+    ->     vaccine_availability VARCHAR(20),
+    ->     FOREIGN KEY (health_id) REFERENCES HealthCondition_Dim(health_id)
+    -> );
+Query OK, 0 rows affected (0.09 sec)
+
+mysql>
+mysql> -- ۱۳. PatientRecords
+mysql> CREATE TABLE IF NOT EXISTS PatientRecords (
+    ->     record_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     location_id INT,
+    ->     time_id INT,
+    ->     demo_id INT,
+    ->     diagnosis VARCHAR(100),
+    ->     treatment_cost DECIMAL(8,2),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (demo_id) REFERENCES Demographic_Dim(demo_id)
+    -> );
+Query OK, 0 rows affected (0.10 sec)
+
+mysql>
+mysql> -- ۱۴. PollutionLogs
+mysql> CREATE TABLE IF NOT EXISTS PollutionLogs (
+    ->     log_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     air_id INT,
+    ->     co2_level DECIMAL(6,2),
+    ->     no2_level DECIMAL(6,2),
+    ->     efficiency_measure VARCHAR(50),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (air_id) REFERENCES AirQuality_Dim(air_id)
+    -> );
+Query OK, 0 rows affected (0.97 sec)
+
+mysql>
+mysql> -- ۱۵. HealthAlerts
+mysql> CREATE TABLE IF NOT EXISTS HealthAlerts (
+    ->     alert_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     health_id INT,
+    ->     alert_type VARCHAR(50),
+    ->     alert_level VARCHAR(20),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (health_id) REFERENCES HealthCondition_Dim(health_id)
+    -> );
+Query OK, 0 rows affected (0.09 sec)
+
+mysql>
+mysql>
+mysql> USE IntegratedWeatherDB;
+Database changed
+mysql>
+mysql> -- ۱. Time Dimension (مشترکه)
+mysql> CREATE TABLE IF NOT EXISTS Time_Dim (
+    ->     time_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     date DATE,
+    ->     day INT,
+    ->     month INT,
+    ->     year INT,
+    ->     season VARCHAR(20),
+    ->     hour INT,
+    ->     weekday VARCHAR(10)
+    -> );
+Query OK, 0 rows affected (0.06 sec)
+
+mysql>
+mysql> -- ۲. Location Dimension (مشترکه)
+mysql> CREATE TABLE IF NOT EXISTS Location_Dim (
+    ->     location_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     city_name VARCHAR(100),
+    ->     province VARCHAR(100),
+    ->     country VARCHAR(50),
+    ->     latitude DECIMAL(10,8),
+    ->     longitude DECIMAL(11,8),
+    ->     population_density INT,
+    ->     elevation INT
+    -> );
+Query OK, 0 rows affected (0.14 sec)
+
+mysql>
+mysql> -- ۳. Crop Dimension (له Agri)
+mysql> CREATE TABLE IF NOT EXISTS Crop_Dim (
+    ->     crop_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     crop_name VARCHAR(100),
+    ->     planting_period VARCHAR(50),
+    ->     water_requirement DECIMAL(5,2),
+    ->     growth_days INT
+    -> );
+Query OK, 0 rows affected (0.23 sec)
+
+mysql>
+mysql> -- ۴. Air Quality Dimension (له Health)
+mysql> CREATE TABLE IF NOT EXISTS AirQuality_Dim (
+    ->     air_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     pollution_level VARCHAR(50),
+    ->     aqi_range VARCHAR(50),
+    ->     main_pollutant VARCHAR(20),
+    ->     pm25_level DECIMAL(5,2)
+    -> );
+Query OK, 0 rows affected (0.07 sec)
+
+mysql>
+mysql> -- ۵. Weather Dimension (مشترکه)
+mysql> CREATE TABLE IF NOT EXISTS Weather_Dim (
+    ->     weather_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     temperature_range VARCHAR(50),
+    ->     humidity_range VARCHAR(50),
+    ->     rainfall_range VARCHAR(50),
+    ->     wind_speed DECIMAL(4,2)
+    -> );
+Query OK, 0 rows affected (1.47 sec)
+
+mysql>
+mysql> -- ۶. Integrated Dimension (نوې - د دواړو ترکیب)
+mysql> CREATE TABLE IF NOT EXISTS Integrated_Dim (
+    ->     int_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     crop_id INT,
+    ->     health_id INT,
+    ->     correlation_type VARCHAR(50),
+    ->     impact_factor DECIMAL(5,2),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id)  -- فرضاً له Agri import
+    -> );
+Query OK, 0 rows affected (0.12 sec)
+
+mysql>
+mysql> -- فکت ټیبلونه
+mysql> -- ۷. Fact Integrated Analysis
+mysql> CREATE TABLE IF NOT EXISTS Fact_IntegratedAnalysis (
+    ->     analysis_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     crop_id INT,
+    ->     air_id INT,
+    ->     weather_id INT,
+    ->     int_id INT,
+    ->     combined_yield DECIMAL(8,2),
+    ->     combined_risk DECIMAL(5,2),
+    ->     correlation_score DECIMAL(5,2),
+    ->     total_impact DECIMAL(6,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id),
+    ->     FOREIGN KEY (air_id) REFERENCES AirQuality_Dim(air_id),
+    ->     FOREIGN KEY (weather_id) REFERENCES Weather_Dim(weather_id),
+    ->     FOREIGN KEY (int_id) REFERENCES Integrated_Dim(int_id)
+    -> );
+Query OK, 0 rows affected (0.16 sec)
+
+mysql>
+mysql> -- ۸. Fact Cross Effects
+mysql> CREATE TABLE IF NOT EXISTS Fact_CrossEffects (
+    ->     effect_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     crop_id INT,
+    ->     health_id INT,
+    ->     weather_id INT,
+    ->     air_id INT,
+    ->     yield_loss DECIMAL(6,2),
+    ->     health_cases_increase INT,
+    ->     mitigation_score DECIMAL(5,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id),
+    ->     FOREIGN KEY (health_id) REFERENCES HealthCondition_Dim(health_id),  -- فرضاً import
+    ->     FOREIGN KEY (weather_id) REFERENCES Weather_Dim(weather_id),
+    ->     FOREIGN KEY (air_id) REFERENCES AirQuality_Dim(air_id)
+    -> );
+ERROR 1824 (HY000): Failed to open the referenced table 'healthcondition_dim'
+mysql>
+mysql> -- ۹. Fact Summary Metrics
+mysql> CREATE TABLE IF NOT EXISTS Fact_SummaryMetrics (
+    ->     metric_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     overall_score DECIMAL(5,2),
+    ->     agri_contribution DECIMAL(5,2),
+    ->     health_contribution DECIMAL(5,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id)
+    -> );
+Query OK, 0 rows affected (0.58 sec)
+
+mysql>
+mysql> -- اضافي ټیبلونه
+mysql> -- ۱۰. Users (مشترکه)
+mysql> CREATE TABLE IF NOT EXISTS Users (
+    ->     user_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     username VARCHAR(50),
+    ->     role VARCHAR(30),
+    ->     email VARCHAR(100),
+    ->     created_date DATE
+    -> );
+Query OK, 0 rows affected (0.17 sec)
+
+mysql>
+mysql> -- ۱۱. AuditLogs
+mysql> CREATE TABLE IF NOT EXISTS AuditLogs (
+    ->     log_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     user_id INT,
+    ->     action VARCHAR(100),
+    ->     timestamp DATETIME,
+    ->     table_name VARCHAR(50),
+    ->     FOREIGN KEY (user_id) REFERENCES Users(user_id)
+    -> );
+Query OK, 0 rows affected (1.58 sec)
+
+mysql>
+mysql> -- ۱۲. Metadata_Integrated
+mysql> CREATE TABLE IF NOT EXISTS Metadata_Integrated (
+    ->     meta_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     int_id INT,
+    ->     data_source VARCHAR(50),
+    ->     update_frequency VARCHAR(20),
+    ->     FOREIGN KEY (int_id) REFERENCES Integrated_Dim(int_id)
+    -> );
+Query OK, 0 rows affected (0.16 sec)
+
+mysql>
+mysql> -- ۱۳. SensorIntegrated
+mysql> CREATE TABLE IF NOT EXISTS SensorIntegrated (
+    ->     sensor_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     location_id INT,
+    ->     time_id INT,
+    ->     sensor_type VARCHAR(50),  -- Agri or Health
+    ->     reading_value DECIMAL(6,2),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id)
+    -> );
+Query OK, 0 rows affected (0.23 sec)
+
+mysql>
+mysql> -- ۱۴. ProfileIntegrated
+mysql> CREATE TABLE IF NOT EXISTS ProfileIntegrated (
+    ->     profile_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     location_id INT,
+    ->     profile_type VARCHAR(30),  -- Farmer or Patient
+    ->     details TEXT,
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id)
+    -> );
+Query OK, 0 rows affected (0.28 sec)
+
+mysql>
+mysql> -- ۱۵. AlertIntegrated
+mysql> CREATE TABLE IF NOT EXISTS AlertIntegrated (
+    ->     alert_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     int_id INT,
+    ->     alert_type VARCHAR(50),
+    ->     alert_level VARCHAR(20),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (int_id) REFERENCES Integrated_Dim(int_id)
+    -> );
+Query OK, 0 rows affected (1.61 sec)
+
+mysql>
+mysql>
+mysql>
+mysql>
+mysql>
+mysql>
+mysql>
+mysql> CREATE INDEX idx_time ON Time_Dim(time_id);
+Query OK, 0 rows affected (0.71 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql>
+mysql> -- د AgriWeatherDB لپاره انډیکسونه
+mysql> USE AgriWeatherDB;
+Database changed
+mysql> CREATE INDEX idx_time ON Time_Dim(time_id);
+Query OK, 0 rows affected (0.14 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_location ON Location_Dim(location_id);
+Query OK, 0 rows affected (0.09 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_crop ON Crop_Dim(crop_id);
+Query OK, 0 rows affected (0.05 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql> -- د HealthWeatherDB لپاره انډیکسونه
+mysql> USE HealthWeatherDB;
+Database changed
+mysql> CREATE INDEX idx_time ON Time_Dim(time_id);
+Query OK, 0 rows affected (0.08 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_location ON Location_Dim(location_id);
+Query OK, 0 rows affected (0.16 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_air ON AirQuality_Dim(air_id);
+Query OK, 0 rows affected (0.06 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_health ON HealthCondition_Dim(health_id);
+Query OK, 0 rows affected (0.09 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql> -- د IntegratedWeatherDB لپاره انډیکسونه
+mysql> USE IntegratedWeatherDB;
+Database changed
+mysql> CREATE INDEX idx_time ON Time_Dim(time_id);
+ERROR 1061 (42000): Duplicate key name 'idx_time'
+mysql> CREATE INDEX idx_location ON Location_Dim(location_id);
+Query OK, 0 rows affected (0.24 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_crop ON Crop_Dim(crop_id);
+Query OK, 0 rows affected (0.07 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql> CREATE INDEX idx_air ON AirQuality_Dim(air_id);
+Query OK, 0 rows affected (0.04 sec)
+Records: 0  Duplicates: 0  Warnings: 0
+
+mysql>
+mysql>
+mysql> CREATE INDEX idx_air ON AirQuality_Dim(air_id);
+ERROR 1061 (42000): Duplicate key name 'idx_air'
+mysql>
+mysql>
+mysql> -- د IntegratedWeatherDB کې HealthCondition_Dim جوړول (د shared dimension لپاره)
+mysql> USE IntegratedWeatherDB;
+Database changed
+mysql> CREATE TABLE IF NOT EXISTS HealthCondition_Dim (
+    ->     health_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     disease_type VARCHAR(100),
+    ->     risk_level VARCHAR(20),
+    ->     symptom_severity INT
+    -> );
+Query OK, 0 rows affected (0.06 sec)
+
+mysql>
+mysql> -- اوس Fact_CrossEffects له سره جوړول (د foreign key سره)
+mysql> DROP TABLE IF EXISTS Fact_CrossEffects;  -- پخوانی ناکامه له منځه یوسئ که شته وي
+Query OK, 0 rows affected, 1 warning (0.01 sec)
+
+mysql> CREATE TABLE Fact_CrossEffects (
+    ->     effect_id INT PRIMARY KEY AUTO_INCREMENT,
+    ->     time_id INT,
+    ->     location_id INT,
+    ->     crop_id INT,
+    ->     health_id INT,
+    ->     weather_id INT,
+    ->     air_id INT,
+    ->     yield_loss DECIMAL(6,2),
+    ->     health_cases_increase INT,
+    ->     mitigation_score DECIMAL(5,2),
+    ->     FOREIGN KEY (time_id) REFERENCES Time_Dim(time_id),
+    ->     FOREIGN KEY (location_id) REFERENCES Location_Dim(location_id),
+    ->     FOREIGN KEY (crop_id) REFERENCES Crop_Dim(crop_id),
+    ->     FOREIGN KEY (health_id) REFERENCES HealthCondition_Dim(health_id),
+    ->     FOREIGN KEY (weather_id) REFERENCES Weather_Dim(weather_id),
+    ->     FOREIGN KEY (air_id) REFERENCES AirQuality_Dim(air_id)
+    -> );
+Query OK, 0 rows affected (0.23 sec)
+
+
+
+
+CREATE DATABASE WeatherDataWarehouse;
+USE WeatherDataWarehouse;
+SET default_storage_engine = 'InnoDB';
+ALTER DATABASE WeatherDataWarehouse CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+
+دا سم دی! د ۵ rows ښکاره شوي، چې د Time_Dim او Location_Dim ترکیب ښيي (د وخت او ځای سره).
+کار: د ځایي موسمي تجزیې لپاره – مثلاً د کابل کې د ۲۰۲۴ کې د تودوخې بدلون وګورئ.
+SELECT * FROM Merged_Dims LIMIT 5;
+
+
+
+کار: د موسم پر بنسټ متوسط تودوخه او باران ښيي – د کرنې لپاره ګټور (لکه د غوښتنې فصل کې باران زیات دی).
+USE WeatherDataWarehouse;
+SELECT t.season, AVG(f.avg_temperature) AS Avg_Temp, AVG(f.total_rainfall) AS Avg_Rain 
+FROM Fact_AgriForecast f JOIN Time_Dim t ON f.time_id = t.time_id 
+GROUP BY t.season;
+
+
+
+کار: د فصل نوم سره د حاصلات وړاندوینه او ککړتیا سطح اړیکه ښيي – د روغتیا او کرنې ترکیب لپاره ګټور (لکه لوړ PM2.5 کې حاصلات کم دي).
+USE WeatherDataWarehouse;
+SELECT c.crop_name, AVG(f.yield_prediction) AS Avg_Yield, AVG(a.pm25_level) AS Avg_PM25 
+FROM Fact_AgriForecast f JOIN Crop_Dim c ON f.crop_id = c.crop_id JOIN AirQuality_Dim a ON f.weather_id = a.air_id 
+GROUP BY c.crop_name LIMIT 5;
+
+
+
+
+د WeatherDataWarehouse په ټولو مهمو جدولونو کې څومره ریکارډونه (Rows) شته، هغه ټول په یوه ګډه جدول کې درښيي
+USE WeatherDataWarehouse;
+
+SELECT 'Time_Dim' AS TableName, COUNT(*) AS `RowCount` FROM Time_Dim
+UNION ALL
+SELECT 'Location_Dim', COUNT(*) FROM Location_Dim
+UNION ALL
+SELECT 'Crop_Dim', COUNT(*) FROM Crop_Dim
+UNION ALL
+SELECT 'AirQuality_Dim', COUNT(*) FROM AirQuality_Dim
+UNION ALL
+SELECT 'HealthCondition_Dim', COUNT(*) FROM HealthCondition_Dim
+UNION ALL
+SELECT 'Fact_AgriForecast', COUNT(*) FROM Fact_AgriForecast;
+
+
+
+
+
+۱. د فصلونو او موسم اړیکې تجزیه (Crop & Season Analysis):څه کار کوي: د فصل نوم سره د موسم پر بنسټ متوسط حاصلات وړاندوینه ښيي – د کرنې لپاره ګټور (لکه کوم فصل کې څومره حاصلات زیات دي).
+سم شوی Query:sql
+
+SELECT c.crop_name, t.season, AVG(f.yield_prediction) AS Avg_Yield 
+FROM Fact_AgriForecast f 
+JOIN Crop_Dim c ON f.crop_id = c.crop_id 
+JOIN Time_Dim t ON f.time_id = t.time_id 
+GROUP BY c.crop_name, t.season 
+ORDER BY Avg_Yield DESC 
+LIMIT 10;
+
+
+
+۲. د هوا کیفیت او حاصلات اغېزې (Air Quality Impact on Yield):څه کار کوي: د ککړتیا سطح (PM2.5) سره د حاصلات وړاندوینې اړیکه ښيي – د روغتیا او کرنې ترکیب (لوړ PM2.5 کې حاصلات کم دي).
+سم شوی Query:sql
+
+SELECT a.pollution_level, AVG(f.yield_prediction) AS Avg_Yield, AVG(a.pm25_level) AS Avg_PM25 
+FROM Fact_AgriForecast f 
+JOIN AirQuality_Dim a ON f.weather_id = a.air_id 
+GROUP BY a.pollution_level 
+ORDER BY Avg_PM25 DESC;
+
+
+
+
+۳. د روغتیايي حالت او موسم اړیکه (Health Condition & Season Link):څه کار کوي: د ناروغۍ ډول سره د موسم اړیکه ښيي – د روغتیا تجزیې لپاره (لکه ژمي کې تنفسي ناروغۍ زیاتې دي).
+سم شوی Query:sql
+
+SELECT h.disease_type, t.season, COUNT(*) AS Case_Count 
+FROM HealthCondition_Dim h 
+JOIN Fact_AgriForecast f ON h.health_id = f.crop_id  -- د سمبوليك ترکیب لپاره (د روغتيا او کرنې اړيکه)
+JOIN Time_Dim t ON f.time_id = t.time_id 
+GROUP BY h.disease_type, t.season 
+ORDER BY Case_Count DESC 
+LIMIT 10;
+
+
+
+۴. د ټول وېرهۍس خلاصه راپور (Warehouse Summary Report):څه کار کوي: د ټول وېرهۍس خلاصه ښيي (د ټول ریکارډونو، متوسط قدرونو، او views شمېر) – د پروژې پای لپاره ښه.
+سم شوی Query:sql
+
+SELECT 
+    (SELECT COUNT(*) FROM Time_Dim) AS Total_Time_Records,
+    (SELECT COUNT(*) FROM Fact_AgriForecast) AS Total_Fact_Records,
+    (SELECT AVG(yield_prediction) FROM Fact_AgriForecast) AS Avg_Yield_Prediction,
+    (SELECT COUNT(*) FROM Merged_Dims) AS Total_Merged_Records;
+
+
+
+څه کار کوي: د فصل نوم سره د باران متوسط اړیکه ښيي – د کرنې وروسته ګوښې لپاره ګټور (لکه غنمو کې څومره باران غوره دی).
+سم شوی Query:sql
+
+SELECT c.crop_name, AVG(f.total_rainfall) AS Avg_Rainfall_mm, AVG(f.yield_prediction) AS Avg_Yield 
+FROM Fact_AgriForecast f 
+JOIN Crop_Dim c ON f.crop_id = c.crop_id 
+GROUP BY c.crop_name 
+ORDER BY Avg_Rainfall_mm DESC 
+LIMIT 8;
+
+
+
+
+۲. د ککړتیا او روغتیايي خطر اړیکه (Pollution & Health Risk Link):څه کار کوي: د ککړتیا سطح سره د روغتیايي خطر امتیاز اړیکه ښيي – د روغتیا څارنې لپاره (لوړ PM2.5 کې خطر زیات دی).
+سم شوی Query:sql
+
+SELECT a.pollution_level, AVG(h.health_risk_score) AS Avg_Health_Risk, AVG(a.pm25_level) AS Avg_PM25 
+FROM AirQuality_Dim a 
+JOIN HealthCondition_Dim h ON a.air_id = h.health_id  # د سمبوليك ترکیب لپاره
+GROUP BY a.pollution_level 
+ORDER BY Avg_PM25 DESC;
+
+
+
+۳. د موسم او حاصلات وړاندوینه (Season & Yield Prediction):څه کار کوي: د موسم سره د حاصلات وړاندوینې اړیکه ښيي – د موسمي بدلونونو پر بنسٲ د کرنې پلان جوړول.
+سم شوی Query:sql
+
+SELECT t.season, AVG(f.yield_prediction) AS Avg_Yield, COUNT(*) AS Record_Count 
+FROM Fact_AgriForecast f 
+JOIN Time_Dim t ON f.time_id = t.time_id 
+GROUP BY t.season 
+ORDER BY Avg_Yield DESC;
+
+
+
+
+۴. د ځایي تجزیې خلاصه (Location-Based Summary):څه کار کوي: د ځای (ښار) سره د متوسط تودوخه او حاصلات اړیکه ښيي – د ځایي وروسته ګوښې لپاره.
+سم شوی Query:sql
+
+SELECT l.city_name, AVG(f.avg_temperature) AS Avg_Temp, AVG(f.yield_prediction) AS Avg_Yield 
+FROM Fact_AgriForecast f 
+JOIN Location_Dim l ON f.location_id = l.location_id 
+GROUP BY l.city_name 
+ORDER BY Avg_Yield DESC 
+LIMIT 6;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1) ROLLUP
+د هر ولایت د هر کال د اوسط حاصل (yield) اټکل ترلاسه کول.
+
+د هر ولایت لپاره د ټولو کلونو مجموعي اوسط هم وګورې.
+
+په پای کې د ټول افغانستان لپاره یو عمومي اوسط (Grand Total) هم جوړ کړي.
+
+jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj
+
+
+
+ROLLUP
+
+SELECT 
+    l.province,
+    t.year,
+    AVG(f.yield_prediction) AS avg_yield
+FROM Fact_AgriForecast f
+JOIN Location_Dim l ON f.location_id = l.location_id
+JOIN Time_Dim t ON f.time_id = t.time_id
+GROUP BY l.province, t.year WITH ROLLUP
+ORDER BY l.province, t.year;
+
+
+2) CUBE
+
+
+SELECT c.crop_name, t.season, AVG(f.yield_prediction) AS avg_yield
+FROM Fact_AgriForecast f
+JOIN Crop_Dim c ON f.crop_id = c.crop_id
+JOIN Time_Dim t ON f.time_id = t.time_id
+GROUP BY c.crop_name, t.season
+UNION ALL
+SELECT c.crop_name, NULL AS season, AVG(f.yield_prediction)
+FROM Fact_AgriForecast f
+JOIN Crop_Dim c ON f.crop_id = c.crop_id
+GROUP BY c.crop_name
+UNION ALL
+SELECT NULL AS crop_name, t.season, AVG(f.yield_prediction)
+FROM Fact_AgriForecast f
+JOIN Time_Dim t ON f.time_id = t.time_id
+GROUP BY t.season
+UNION ALL
+SELECT NULL, NULL, AVG(yield_prediction)
+FROM Fact_AgriForecast;
+
+
+
+
+3) GROUPING SETS
+
+-- Province فقط
+SELECT l.province, NULL AS year, NULL AS crop_name,
+       AVG(f.yield_prediction) AS avg_yield
+FROM Fact_AgriForecast f
+JOIN Location_Dim l ON f.location_id = l.location_id
+GROUP BY l.province
+
+UNION ALL
+-- Year فقط
+SELECT NULL, t.year, NULL,
+       AVG(f.yield_prediction)
+FROM Fact_AgriForecast f
+JOIN Time_Dim t ON f.time_id = t.time_id
+GROUP BY t.year
+
+UNION ALL
+-- Crop فقط
+SELECT NULL, NULL, c.crop_name,
+       AVG(f.yield_prediction)
+FROM Fact_AgriForecast f
+JOIN Crop_Dim c ON f.crop_id = c.crop_id
+GROUP BY c.crop_name
+
+UNION ALL
+-- Grand Total
+SELECT NULL, NULL, NULL,
+       AVG(yield_prediction)
+FROM Fact_AgriForecast;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
